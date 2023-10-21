@@ -1,0 +1,3 @@
+#LogLevel alert rewrite:trace3
+RewriteEngine On
+RewriteRule ^([^?]*)(?:\?(.*))?$ climate-science-service.php?path=$1&$2

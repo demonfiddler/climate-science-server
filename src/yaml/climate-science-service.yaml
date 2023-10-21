@@ -1,0 +1,699 @@
+openapi: 3.1.0
+info:
+  title: Climate Science Service - OpenAPI 3.0
+  description: |-
+    This is a JSON REST API for fetching details of climate scientists and their publications, based on the OpenAPI 3.1 specification.
+    Some useful links:
+    - [The Climate Science directory](https://campaign-resources.org/media/Climate%20Science)
+  termsOfService: https://campaign-resources.org/climate.html
+  contact:
+    email: adrianp.quatinus@virginmedia.com
+  license:
+    name: GNU Affero General Public License v3.0
+    url: https://www.gnu.org/licenses/agpl-3.0.en.html
+  version: 0.0.1
+externalDocs:
+  description: Find out more about climate sceptics and science
+  url: https://campaign-resources.org/media/Climate%20Science/Climate%20Sceptics.pdf
+servers:
+  - url: http://debian.local/climate-service
+tags:
+  - name: Scientists
+    description: Everything about climate sceptic scientists
+    externalDocs:
+      description: Find out more
+      url: http://swagger.io
+  - name: Science
+    description: Everything about climate sceptic science
+    externalDocs:
+      description: Find out more
+      url: http://swagger.io
+  - name: Declarations
+    description: Public declarations, open letters, etc.
+    externalDocs:
+      description: Find out more
+      url: http://swagger.io
+  - name: Quotations
+    description: Public spoken or written quotations.
+    externalDocs:
+      description: Find out more
+      url: http://swagger.io
+  - name: Authorship
+    description: Who wrote what climate science publication
+    externalDocs:
+      description: Find out more
+      url: http://swagger.io
+  - name: Signatories
+    description: Who signed what declarations and open letters
+    externalDocs:
+      description: Find out more
+      url: http://swagger.io
+paths:
+  /person/{personId}:
+    get:
+      tags:
+        - Scientists
+      summary: Retrieves a person
+      description: Retrieves the person specified by their unique database identifier
+      operationId: getPersonById
+      parameters:
+        - $ref: '#/components/parameters/personIdPath'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+        '404':
+          description: Person not found
+  /person/find:
+    get:
+      tags:
+        - Scientists
+      summary: Finds persons
+      description: Results can be paginated by supplying start and record count
+      operationId: findPersons
+      parameters:
+        - $ref: '#/components/parameters/startOpt'
+        - $ref: '#/components/parameters/countOpt'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Person'
+        '400':
+          description: Invalid start or count value
+  /person/findByPublication:
+    get:
+      tags:
+        - Scientists
+      summary: Finds persons
+      description: Finds persons by publication ID
+      operationId: findPersonsByPublication
+      parameters:
+        - $ref: '#/components/parameters/publicationId'
+        - $ref: '#/components/parameters/startOpt'
+        - $ref: '#/components/parameters/countOpt'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Person'
+        '400':
+          description: Invalid start or count value
+  /person/findByDeclaration:
+    get:
+      tags:
+        - Scientists
+      summary: Finds persons
+      description: Finds persons by declaration ID
+      operationId: findPersonsByDeclaration
+      parameters:
+        - $ref: '#/components/parameters/declarationId'
+        - $ref: '#/components/parameters/startOpt'
+        - $ref: '#/components/parameters/countOpt'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Person'
+        '400':
+          description: Invalid start or count value
+  /publication/{publicationId}:
+    get:
+      tags:
+        - Science
+      summary: Retrieves a publication
+      description: Retrieves the publication specified by its unique database identifier
+      operationId: getPublicationById
+      parameters:
+        - $ref: '#/components/parameters/publicationIdPath'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Publication'
+        '404':
+          description: Publication not found
+  /publication/find:
+    get:
+      tags:
+        - Science
+      summary: Finds publications
+      description: Results can be paginated by supplying start and record count
+      operationId: findPublications
+      parameters:
+        - $ref: '#/components/parameters/startOpt'
+        - $ref: '#/components/parameters/countOpt'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Publication'
+        '400':
+          description: Invalid start or count value
+  /publication/findByAuthor:
+    get:
+      tags:
+        - Science
+      summary: Finds publications
+      description: Finds publications by author ID and/or last name
+      operationId: findPublicationsByAuthor
+      parameters:
+        - $ref: '#/components/parameters/personId'
+        - $ref: '#/components/parameters/lastName'
+        - $ref: '#/components/parameters/startOpt'
+        - $ref: '#/components/parameters/countOpt'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Publication'
+        '400':
+          description: Invalid start or count value
+  /declaration/{declarationId}:
+    get:
+      tags:
+        - Declarations
+      summary: Retrieves a declaration
+      description: Retrieves a declaration as specified by its unique database identifier
+      operationId: getDeclarationById
+      parameters:
+        - $ref: '#/components/parameters/declarationIdPath'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Declaration'
+        '404':
+          description: Declaration not found
+  /declaration/find:
+    get:
+      tags:
+        - Declarations
+      summary: Finds declarations
+      description: Results can be paginated by supplying start and record count
+      operationId: findDeclarations
+      parameters:
+        - $ref: '#/components/parameters/startOpt'
+        - $ref: '#/components/parameters/countOpt'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Declaration'
+        '400':
+          description: Invalid start or count value
+  /declaration/findBySignatory:
+    get:
+      tags:
+        - Declarations
+      summary: Finds declarations
+      description: Finds declarations by signatory ID
+      operationId: findDeclarationsBySignatory
+      parameters:
+        - $ref: '#/components/parameters/personId'
+        - $ref: '#/components/parameters/lastName'
+        - $ref: '#/components/parameters/startOpt'
+        - $ref: '#/components/parameters/countOpt'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Declaration'
+        '400':
+          description: Invalid start or count value
+  /quotation/{quotationId}:
+    get:
+      tags:
+        - Quotations
+      summary: Finds a quotation
+      description: Retrieves a quotation as specified by its unique database identifier
+      operationId: getQuotationById
+      parameters:
+        - $ref: '#/components/parameters/quotationIdPath'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Declaration'
+        '404':
+          description: Quotation not found
+    patch:
+      tags:
+        - Quotations
+      summary: Links or unlinks a quotation and person
+      description: Links or unlinks a specified Person as the origin of a specified Quotation.
+      operationId: linkQuotationAuthor
+      parameters:
+        - $ref: '#/components/parameters/quotationIdPath'
+        - $ref: '#/components/parameters/personIdOpt'
+      responses:
+        '204':
+          description: successful operation
+        '404':
+          description: quotation or person not found
+  /quotation/find:
+    get:
+      tags:
+        - Quotations
+      summary: Finds quotations
+      description: Results can be paginated by supplying start and record count
+      parameters:
+        - $ref: '#/components/parameters/startOpt'
+        - $ref: '#/components/parameters/countOpt'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Quotation'
+        '400':
+          description: Invalid start or count value
+  /quotation/findByAuthor:
+    get:
+      tags:
+        - Quotations
+      summary: Finds quotations
+      description: Finds quotations by author ID and/or last name
+      operationId: findQuotationsByAuthor
+      parameters:
+        - $ref: '#/components/parameters/personId'
+        - $ref: '#/components/parameters/lastName'
+        - $ref: '#/components/parameters/startOpt'
+        - $ref: '#/components/parameters/countOpt'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Quotation'
+        '400':
+          description: Invalid start or count value
+  /authorship/{personId}/{publicationId}:
+    post: 
+      tags:
+        - Authorship
+      summary: Create a new authorship
+      description: Links a person to a publication.
+      operationId: createAuthorship
+      parameters:
+        - $ref: '#/components/parameters/personIdPath'
+        - $ref: '#/components/parameters/publicationIdPath'
+      responses: 
+        '201':
+          description: Successful, new authorship created.
+        '204':
+          description: Successful, new authorship created.
+        '403':
+          description: Operation only available to local/authorised clients.
+        # '409':
+        #   description: Authorship link already exists.
+    delete:
+      tags:
+        - Authorship
+      summary: Deletes an existing authorship
+      description: Deletes the link between a person and a publication. Operation only available to local clients.
+      operationId: deleteAuthorship
+      parameters:
+        - $ref: '#/components/parameters/personIdPath'
+        - $ref: '#/components/parameters/publicationIdPath'
+      responses: 
+        '200':
+          description: Successful, authorship deleted.
+        '403':
+          description: Operation only available to local/authorised clients.
+        # '404':
+        #   description: Authorship link does not exist.
+  /signatory/{personId}/{declarationId}:
+    post: 
+      tags:
+        - Signatories
+      summary: Create a new signatory
+      description: Links a person to a declaration.
+      operationId: createSignatory
+      parameters:
+        - $ref: '#/components/parameters/personIdPath'
+        - $ref: '#/components/parameters/declarationIdPath'
+      responses: 
+        '201':
+          description: Successful, new signatory created.
+        '204':
+          description: Successful, new signatory created.
+        '403':
+          description: Operation only available to local/authorised clients.
+        # '409':
+        #   description: Signatory link already exists.
+    delete:
+      tags:
+        - Signatories
+      summary: Deletes an existing signatory
+      description: Deletes the link between a person and a declaration. Operation only available to local clients.
+      operationId: deleteSignatory
+      parameters:
+        - $ref: '#/components/parameters/personIdPath'
+        - $ref: '#/components/parameters/declarationIdPath'
+      responses: 
+        '200':
+          description: Successful, signatory deleted.
+        '403':
+          description: Operation only available to local clients.
+        '404':
+          description: Signatory link does not exist.
+components:
+  schemas:
+    Person:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int32
+          description: Unique database person identifier
+        TITLE:
+          type: string
+          maxLength: 10
+          description: The person's title
+        FIRST_NAME:
+          type: string
+          maxLength: 80
+          description: The person's first names
+        NICKNAME:
+          type: string
+          maxLength: 40
+          description: Alternative first name
+        LAST_NAME:
+          type: string
+          maxLength: 40
+          description: The person's lasts name
+        ALIAS:
+          type: string
+          maxLength: 40
+          description: Alternative last name
+        SUFFIX:
+          type: string
+          maxLength: 16
+          description: Last name suffix
+        COUNTRY:
+          type: string
+          maxLength: 50
+          description: The country with which the person is most associated in the climate science context
+        DESCRIPTION:
+          type: string
+          description: Brief person description/micro-biography
+        QUALIFICATIONS:
+          type: string
+          description: The person's academic qualifications.
+        RATING:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 5
+          description: Academic eminence star rating, 1..5
+        CHECKED:
+          type: boolean
+          description: Whether the person's credentials have been checked/verified
+        PUBLISHED:
+          type: boolean
+          description: Whether the person has published peer-reviewed climate science
+    Publication:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+          description: Unique database publication identifier
+        TITLE:
+          type: string
+          maxLength: 200
+          description: The publication or article title
+        AUTHORS:
+          type: string
+          maxLength: 100
+          description: Publication author names, one per line
+        JOURNAL:
+          type: string
+          maxLength: 100
+          description: The name of the journal in which the article was published
+        PUBLICATION_TYPE_ID:
+          type: string
+          maxLength: 6
+          description: The publication type, must be a valid RIS type code.
+        PUBLICATION_DATE:
+          type: string
+          minLength: 10
+          maxLength: 10
+          description: Publication date in yyyy/mm/dd format
+        PUBLICATION_YEAR:
+          type: string
+          minLength: 4
+          maxLength: 4
+          description: Publication year in yyyy format
+        PEER_REVIEWED:
+          type: boolean
+          description: Whether the publication was peer-reviewed.
+        DOI:
+          type: string
+          maxLength: 255
+          description: The digital object identifier
+        ISSN_ISBN:
+          type: string
+          maxLength: 20
+          description: The ISSN or ISBN
+        URL:
+          type: string
+          maxLength: 200
+          description: Link to a relavant web page
+        ACCESSED:
+          type: string
+          maxLength: 10
+          description: Access date in yyyy/mm/dd format
+        LINKED:
+          type: boolean
+          description: Whether the authorship link exists in the database
+      xml:
+        name: publication
+    Declaration:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+          description: Unique database publication identifier
+        TYPE:
+          type: string
+          maxLength: 20
+          description: The type of declaration
+        TITLE:
+          type: string
+          maxLength: 100
+          description: The title or name by which the document is referred
+        DATE:
+          type: string
+          minLength: 10
+          maxLength: 10
+          description: the date on which the document was published, in yyyy/mm/dd format.
+        COUNTRY:
+          type: string
+          maxLength: 50
+          description: The country (if any) in which the document was published
+        URL:
+          type: string
+          maxLength: 200
+          description: Link to a relevant web page
+    Quotation:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+          description: Unique database quotation identifier
+        PERSON_ID:
+          type: integer
+          format: int64
+          description: Unique database person identifier
+        AUTHOR:
+          type: string
+          maxLength: 50
+          description: The quotation author's name
+        TEXT:
+          type: string
+          maxLength: 1000
+          description: The quotation text
+        DATE:
+          type: string
+          description: The quotation date
+        SOURCE:
+          type: string
+          maxLength: 200
+          description: The quotation source
+        URL:
+          type: string
+          maxLength: 200
+          description: The quotation URL
+        LINKED:
+          type: boolean
+          description: Indicates whether the quotation is explicitly linked to a person.
+    Authorship:
+      type: object
+      properties:
+        PERSON_ID:
+          type: integer
+          format: int32
+          description: Unique database person identifier
+        PUBLICATION_ID:
+          type: integer
+          format: int32
+          description: Unique database publication identifier
+    Signatory:
+      type: object
+      properties:
+        PERSON_ID:
+          type: integer
+          format: int32
+          description: Unique database person identifier
+        DECLARATION_ID:
+          type: integer
+          format: int32
+          description: Unique database declaration identifier
+  parameters:
+    personId:
+      name: personId
+      in: query
+      description: Unique person or author identifier
+      required: true
+      schema:
+        type: integer
+        format: int32
+    personIdOpt:
+      name: personId
+      in: query
+      description: Unique person or author identifier
+      required: false
+      schema:
+        type: integer
+        format: int32
+    personIdPath:
+      name: personId
+      in: path
+      description: Unique person or author identifier
+      required: true
+      schema:
+        type: integer
+        format: int32
+    publicationId:
+      name: publicationId
+      in: query
+      description: Unique publication identifier
+      required: true
+      schema:
+        type: integer
+        format: int32
+    publicationIdPath:
+      name: publicationId
+      in: path
+      description: Unique publication identifier
+      required: true
+      schema:
+        type: integer
+        format: int32
+    declarationId:
+      name: declarationId
+      in: query
+      description: Unique declaration identifier
+      required: true
+      schema:
+        type: integer
+        format: int32
+    declarationIdPath:
+      name: declarationId
+      in: path
+      description: Unique quotation identifier
+      required: true
+      schema:
+        type: integer
+        format: int32
+    quotationId:
+      name: quotationId
+      in: query
+      description: Unique quotation identifier
+      required: true
+      schema:
+        type: integer
+        format: int32
+    quotationIdPath:
+      name: quotationId
+      in: path
+      description: Unique quotation identifier
+      required: true
+      schema:
+        type: integer
+        format: int32
+    lastName:
+      name: lastName
+      in: query
+      description: Author's last name
+      required: false
+      schema:
+        type: string
+        maxLength: 10
+    startOpt:
+      name: start
+      in: query
+      description: Start record number
+      required: false
+      schema:
+        type: integer
+        format: int32
+        default: 0
+    countOpt:
+      name: count
+      in: query
+      description: Maximum record count to return, default returns all
+      required: false
+      schema:
+        type: integer
+        format: int32
+        default: 0
