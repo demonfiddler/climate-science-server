@@ -132,6 +132,17 @@ CREATE TABLE IF NOT EXISTS `signatory` (
 
 -- Data exporting was unselected.
 
+-- Dumping structure for table climate.user
+CREATE TABLE IF NOT EXISTS `user` (
+  `ID` varchar(50) NOT NULL,
+  `FIRST_NAME` varchar(50) NOT NULL,
+  `LAST_NAME` varchar(50) NOT NULL,
+  `EMAIL` varchar(100) DEFAULT NULL,
+  `PASSWORD_HASH` char(60) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Holds details of authenticatable users';
+
+-- Data exporting was unselected.
+
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
 /*!40014 SET FOREIGN_KEY_CHECKS=IFNULL(@OLD_FOREIGN_KEY_CHECKS, 1) */;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
