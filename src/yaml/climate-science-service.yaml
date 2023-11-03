@@ -88,6 +88,7 @@ paths:
       description: Results can be paginated by supplying start and record count
       operationId: findPersons
       parameters:
+        - $ref: '#/components/parameters/filterOpt'
         - $ref: '#/components/parameters/startOpt'
         - $ref: '#/components/parameters/countOpt'
       responses:
@@ -104,6 +105,7 @@ paths:
       operationId: findPersonsByPublication
       parameters:
         - $ref: '#/components/parameters/publicationId'
+        - $ref: '#/components/parameters/filterOpt'
         - $ref: '#/components/parameters/startOpt'
         - $ref: '#/components/parameters/countOpt'
       responses:
@@ -120,6 +122,7 @@ paths:
       operationId: findPersonsByDeclaration
       parameters:
         - $ref: '#/components/parameters/declarationId'
+        - $ref: '#/components/parameters/filterOpt'
         - $ref: '#/components/parameters/startOpt'
         - $ref: '#/components/parameters/countOpt'
       responses:
@@ -149,6 +152,7 @@ paths:
       description: Results can be paginated by supplying start and record count
       operationId: findPublications
       parameters:
+        - $ref: '#/components/parameters/filterOpt'
         - $ref: '#/components/parameters/startOpt'
         - $ref: '#/components/parameters/countOpt'
       responses:
@@ -166,6 +170,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/personId'
         - $ref: '#/components/parameters/lastNameOpt'
+        - $ref: '#/components/parameters/filterOpt'
         - $ref: '#/components/parameters/startOpt'
         - $ref: '#/components/parameters/countOpt'
       responses:
@@ -195,6 +200,7 @@ paths:
       description: Results can be paginated by supplying start and record count
       operationId: findDeclarations
       parameters:
+        - $ref: '#/components/parameters/filterOpt'
         - $ref: '#/components/parameters/startOpt'
         - $ref: '#/components/parameters/countOpt'
       responses:
@@ -212,6 +218,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/personId'
         - $ref: '#/components/parameters/lastNameOpt'
+        - $ref: '#/components/parameters/filterOpt'
         - $ref: '#/components/parameters/startOpt'
         - $ref: '#/components/parameters/countOpt'
       responses:
@@ -258,6 +265,7 @@ paths:
       summary: Finds quotations
       description: Results can be paginated by supplying start and record count
       parameters:
+        - $ref: '#/components/parameters/filterOpt'
         - $ref: '#/components/parameters/startOpt'
         - $ref: '#/components/parameters/countOpt'
       responses:
@@ -275,6 +283,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/personId'
         - $ref: '#/components/parameters/lastNameOpt'
+        - $ref: '#/components/parameters/filterOpt'
         - $ref: '#/components/parameters/startOpt'
         - $ref: '#/components/parameters/countOpt'
       responses:
@@ -615,6 +624,13 @@ components:
       schema:
         type: string
         maxLength: 10
+    filterOpt:
+      name: filter
+      in: query
+      description: Search string
+      required: false
+      schema:
+        type: string
     startOpt:
       name: start
       in: query

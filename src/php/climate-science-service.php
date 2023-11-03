@@ -14,6 +14,7 @@
 	const PATCH = 'PATCH';
 	const PUT = 'PUT';
 	const POST = 'POST';
+	const PARAM_FILTER = 'filter';
 	const PARAM_START = 'start';
 	const PARAM_COUNT = 'count';
 	const PARAM_LAST_NAME = 'lastName';
@@ -23,6 +24,7 @@
 	const PARAM_QUOTATION_ID = 'quotationId';
 	// @formatter:off
 	const FIND_DEFAULTS = [
+			PARAM_FILTER => null,
 			PARAM_START => 0,
 			PARAM_COUNT => 0
 	];
@@ -43,6 +45,7 @@
 			'TITLE',
 			'FIRST_NAME',
 			'NICKNAME',
+			'PREFIX',
 			'LAST_NAME',
 			'SUFFIX',
 			'ALIAS',
@@ -240,25 +243,25 @@
 		}
 
 		# GET /person/{personId} => getPersonById($personId)
-		# GET /person/find?start=0&count=10 => findPersons($start, $count)
-		# GET /person/findByPublication?publicationId=0 => findPersonsByPublication($publicationId)
-		# GET /person/findByDeclaration?declarationId=0 => findPersonsByDeclaration($declarationId)
+		# GET /person/find?filter=&start=0&count=0 => findPersons($filter, $start, $count)
+		# GET /person/findByPublication?publicationId=0&filter=&start=0&count=0 => findPersonsByPublication($publicationId, $filter, $start, $count)
+		# GET /person/findByDeclaration?declarationId=0&filter=&start=0&count=0 => findPersonsByDeclaration($declarationId, $filter, $start, $count)
 		switch ($method) {
 			case GET:
 				switch ($path[1]) {
 					case 'find':
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findPersons($params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findPersons($params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					case 'findByPublication':
 						setDefault($params, PARAM_PUBLICATION_ID, null);
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findPersonsByPublication($params[PARAM_PUBLICATION_ID], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findPersonsByPublication($params[PARAM_PUBLICATION_ID], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					case 'findByDeclaration':
 						setDefault($params, PARAM_PUBLICATION_ID, null);
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findPersonsByDeclaration($params[PARAM_DECLARATION_ID], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findPersonsByDeclaration($params[PARAM_DECLARATION_ID], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					default:
 						$result = getPersonById($path[1], $status);
@@ -289,21 +292,21 @@
 		}
 
 		# GET /publication/{publicationId} => getPublicationById($publicationId)
-		# GET /publication/find?start=0&count=10 => findPublications($start, $count)
-		# GET /publication/findByAuthor?personId=0&lastName=author&start=0&count=10 => findPublicationsByAuthor($personId, $personLastName, $start, $count)
+		# GET /publication/find?filter=&start=0&count=0 => findPublications($filter, $start, $count)
+		# GET /publication/findByAuthor?personId=0&lastName=&filter=&start=0&count=0 => findPublicationsByAuthor($personId, $lastName, $filter, $start, $count)
 		switch ($method) {
 			case GET:
 				switch ($path[1]) {
 					case 'find':
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findPublications($params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findPublications($params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					case 'findByAuthor':
 						setDefaults($params, USER_DEFAULTS);
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findPublicationsByAuthor($params[PARAM_PERSON_ID], $params[PARAM_LAST_NAME], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findPublicationsByAuthor($params[PARAM_PERSON_ID], $params[PARAM_LAST_NAME], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
-					default :
+					default:
 						$result = getPublicationById($path[1], $status);
 						break;
 				}
@@ -339,12 +342,12 @@
 				switch ($path[1]) {
 					case 'find':
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findDeclarations($params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findDeclarations($params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					case 'findBySignatory':
 						setDefaults($params, USER_DEFAULTS);
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findDeclarationsBySignatory($params[PARAM_PERSON_ID], $params[PARAM_LAST_NAME], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findDeclarationsBySignatory($params[PARAM_PERSON_ID], $params[PARAM_LAST_NAME], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					default :
 						$result = getDeclarationById($path[1], $status);
@@ -383,12 +386,12 @@
 				switch ($path[1]) {
 					case 'find':
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findQuotations($params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findQuotations($params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					case 'findByAuthor':
 						setDefaults($params, USER_DEFAULTS);
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findQuotationsByAuthor($params[PARAM_PERSON_ID], $params[PARAM_LAST_NAME], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findQuotationsByAuthor($params[PARAM_PERSON_ID], $params[PARAM_LAST_NAME], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					default :
 						$result = getQuotationById($path[1], $status);
@@ -511,47 +514,74 @@
 
 	/**
 	 * Fetches a paginated sub-list of Persons.
+	 * @param $filter Search string.
 	 * @param $start The index of the first Person to return.
 	 * @param $count The maximum number of Persons to return.
 	 * @param $status The HTTP status code to return, passed by reference.
 	 * @return ResultSet A ResultSet containing the requested Persons.
 	 */
-	function findPersons($start, $count, &$status) {
+	function findPersons($filter, $start, $count, &$status) {
+		if ($filter) {
+			$fields = implode(', ', PERSON_FIELDS);
+			$predicate = "WHERE LOWER(CONVERT(CONCAT_WS('|', $fields) USING UTF8)) LIKE ?";
+			$params = ["%$filter%"];
+		} else {
+			$predicate = '';
+			$params = null;
+		}
 		$sql = [
-			"SELECT COUNT(*) FROM person",
-			"SELECT * FROM person ORDER BY LAST_NAME, FIRST_NAME"
+			"SELECT COUNT(*) FROM person $predicate;",
+			"SELECT * FROM person $predicate ORDER BY LAST_NAME, FIRST_NAME;"
 		];
-		return executeQuery($sql, null, true, $start, $count, $status);
+		return executeQuery($sql, $params, true, $start, $count, $status);
 	}
 
 	/**
 	 * Fetches a paginated sub-list of Persons who are authors of a specified Publication.
 	 * @param $publicationId The ID of the Publication whose authors are required.
+	 * @param $filter Search string.
 	 * @param $start The index of the first Person to retrieve.
 	 * @param $count The maximum number of Persons to retrieve.
 	 * @return ResultSet A ResultSet containing the requested Persons.
 	 */
-	function findPersonsByPublication($publicationId, $start, $count, &$status) {
+	function findPersonsByPublication($publicationId, $filter, $start, $count, &$status) {
+		$params = [$publicationId];
+		if ($filter) {
+			$fields = implode(', ', PERSON_FIELDS);
+			$predicate = "AND LOWER(CONVERT(CONCAT_WS('|', $fields) USING UTF8)) LIKE ?";
+			$params[] = "%$filter%";
+		} else {
+			$predicate = '';
+		}
 		$sql = [
-			"SELECT COUNT(*) FROM person JOIN authorship ON authorship.PERSON_ID = person.ID WHERE authorship.PUBLICATION_ID=?",
-			"SELECT * FROM person JOIN authorship ON authorship.PERSON_ID = person.ID WHERE authorship.PUBLICATION_ID=? ORDER BY person.LAST_NAME, person.FIRST_NAME"
+			"SELECT COUNT(*) FROM person JOIN authorship ON authorship.PERSON_ID = person.ID WHERE authorship.PUBLICATION_ID=? $predicate;",
+			"SELECT * FROM person JOIN authorship ON authorship.PERSON_ID = person.ID WHERE authorship.PUBLICATION_ID=? $predicate ORDER BY person.LAST_NAME, person.FIRST_NAME;"
 		];
-		return executeQuery($sql, [$publicationId], true, $start, $count, $status);
+		return executeQuery($sql, $params, true, $start, $count, $status);
 	}
 
 	/**
 	 * Fetches a paginated sub-list of Persons who are signatories to a specified Declaration.
 	 * @param $declarationId The ID of the Declaration whose signatories are required.
+	 * @param $filter Search string.
 	 * @param $start The index of the first Person to retrieve.
 	 * @param $count The maximum number of Persons to retrieve.
 	 * @return ResultSet A ResultSet containing the requested Persons.
 	 */
-	function findPersonsByDeclaration($declarationId, $start, $count, &$status) {
+	function findPersonsByDeclaration($declarationId, $filter, $start, $count, &$status) {
+		$params = [$declarationId];
+		if ($filter) {
+			$fields = implode(', ', PERSON_FIELDS);
+			$predicate = "AND LOWER(CONVERT(CONCAT_WS('|', $fields) USING UTF8)) LIKE ?";
+			$params[] = "%$filter%";
+		} else {
+			$predicate = '';
+		}
 		$sql = [
-			"SELECT COUNT(*) FROM person JOIN signatory ON signatory.PERSON_ID = person.ID WHERE signatory.DECLARATION_ID=?",
-			"SELECT * FROM person JOIN signatory ON signatory.PERSON_ID = person.ID WHERE signatory.DECLARATION_ID=? ORDER BY person.LAST_NAME, person.FIRST_NAME"
+			"SELECT COUNT(*) FROM person JOIN signatory ON signatory.PERSON_ID = person.ID WHERE signatory.DECLARATION_ID=? $predicate;",
+			"SELECT * FROM person JOIN signatory ON signatory.PERSON_ID = person.ID WHERE signatory.DECLARATION_ID=? $predicate ORDER BY person.LAST_NAME, person.FIRST_NAME;"
 		];
-		return executeQuery($sql, [$declarationId], true, $start, $count, $status);
+		return executeQuery($sql, $params, true, $start, $count, $status);
 	}
 
 	/**
@@ -566,61 +596,82 @@
 
 	/**
 	 * Fetches a paginated sub-list of Publications.
+	 * @param $filter Search string.
 	 * @param $start The index of the first Publication to return.
 	 * @param $count The maximum number of Publications to return.
 	 * @return ResultSet A ResultSet containing the requested Publications.
 	 */
-	function findPublications($start, $count, &$status) {
+	function findPublications($filter, $start, $count, &$status) {
+		if ($filter) {
+			$fields = implode(', ', PUBLICATION_FIELDS);
+			$predicate = "WHERE LOWER(CONVERT(CONCAT_WS('|', $fields) USING UTF8)) LIKE ?";
+			$params = ["%$filter%"];
+		} else {
+			$predicate = "";
+			$params = null;
+		}
 		$sql = [
-			"SELECT COUNT(*) FROM publication",
-			"SELECT * FROM publication ORDER BY PUBLICATION_YEAR, PUBLICATION_DATE"
+			"SELECT COUNT(*) FROM publication $predicate;",
+			"SELECT * FROM publication $predicate ORDER BY PUBLICATION_YEAR DESC, PUBLICATION_DATE DESC;"
 		];
-		return executeQuery($sql, null, true, $start, $count, $status);
+		return executeQuery($sql, $params, true, $start, $count, $status);
 	}
 
 	/**
 	 * Fetches a paginated sub-list of Publications authored by a specified Person.
 	 * @param $personId The ID of the Person whose Publications are required.
 	 * @param $lastName The last name of the Person whose Publications are required.
+	 * @param $filter Search string.
 	 * @param $start The index of the first Publication to retrieve.
 	 * @param $count The maximum number of Publications to retrieve.
 	 * @return ResultSet|null A ResultSet containing the requested Publications.
 	 */
-	function findPublicationsByAuthor($personId, $lastName, $start, $count, &$status) {
-		$gotPersonId = isset($personId);
-		$gotLastName = isset($lastName);
-		if (!$gotPersonId) {
+	function findPublicationsByAuthor($personId, $lastName, $filter, $start, $count, &$status) {
+		if (!isset($personId)) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
 		}
+
+		$params = [$personId];
 		$fields = implode(', ', PUBLICATION_FIELDS);
+		if ($filter) {
+			$predicate = "AND LOWER(CONVERT(CONCAT_WS('|', $fields) USING UTF8)) LIKE ?";
+			$params[] = "%$filter%";
+		} else {
+			$predicate = '';
+		}
 		# @formatter:off
 		$sqlCountById =
 		  '(SELECT COUNT(*)'
 		. ' FROM publication'
 		. ' JOIN authorship ON authorship.PUBLICATION_ID = publication.ID'
-		. ' WHERE authorship.PERSON_ID=?'
+		. ' WHERE authorship.PERSON_ID=? '
+		. $predicate
 		. ')';
 		$sqlPublicationsByAuthorId =
 		  'SELECT ' . $fields . ', TRUE AS LINKED'
 		. ' FROM publication'
 		. ' JOIN authorship ON authorship.PUBLICATION_ID = publication.ID'
-		. ' WHERE authorship.PERSON_ID=? ';
-		$params = [$personId];
-		if ($gotLastName) {
+		. ' WHERE authorship.PERSON_ID=? '
+		. $predicate;
+		if (isset($lastName)) {
 			$sqlCountByLastName =
 			  '(SELECT COUNT(*)'
 			. ' FROM publication'
-			. ' WHERE AUTHORS LIKE ? AND NOT EXISTS'
-			. '  (SELECT 0 FROM authorship WHERE authorship.PUBLICATION_ID = publication.ID AND authorship.PERSON_ID = ?))';
+			. ' WHERE AUTHORS LIKE ? '
+			. $predicate
+			. ' AND NOT EXISTS (SELECT 0 FROM authorship WHERE authorship.PUBLICATION_ID = publication.ID AND authorship.PERSON_ID = ?))';
 			$sqlPublicationsByLastName =
-			'SELECT ' . $fields . ', FALSE AS LINKED'
+			  'SELECT ' . $fields . ', FALSE AS LINKED'
 			. ' FROM publication'
-			. ' WHERE AUTHORS LIKE ? AND NOT EXISTS'
-			. '  (SELECT 0 FROM authorship WHERE authorship.PUBLICATION_ID = publication.ID AND authorship.PERSON_ID = ?) ';
+			. ' WHERE AUTHORS LIKE ? '
+			. $predicate
+			. ' AND NOT EXISTS (SELECT 0 FROM authorship WHERE authorship.PUBLICATION_ID = publication.ID AND authorship.PERSON_ID = ?)';
 			$plus = ' + ';
-			$union = 'UNION ';
+			$union = ' UNION ';
 			$params[] = '%' . $lastName . '%';
+			if ($filter)
+				$params[] = "%$filter%";
 			$params[] = $personId;
 		} else {
 			$sqlCountByLastName = '';
@@ -638,7 +689,7 @@
 			  $sqlPublicationsByAuthorId
 			. $union
 			. $sqlPublicationsByLastName
-			. 'ORDER BY PUBLICATION_YEAR DESC, PUBLICATION_DATE DESC;'
+			. ' ORDER BY PUBLICATION_YEAR DESC, PUBLICATION_DATE DESC;'
 		];
 		# @formatter:on
 		
@@ -657,61 +708,82 @@
 	
 	/**
 	 * Fetches a paginated sub-list of Declarations.
+	 * @param $filter Search string.
 	 * @param $start The index of the first Declaration to return.
 	 * @param $count The maximum number of Declarations to return.
 	 * @return ResultSet A ResultSet containing the requested Declarations.
 	 */
-	function findDeclarations($start, $count, &$status) {
+	function findDeclarations($filter, $start, $count, &$status) {
+		if ($filter) {
+			$fields = implode(', ', DECLARATION_FIELDS);
+			$predicate = "WHERE LOWER(CONVERT(CONCAT_WS('|', $fields) USING UTF8)) LIKE ?";
+			$params = ["%$filter%"];
+		} else {
+			$predicate = "";
+			$params = null;
+		}
 		$sql = [
-			"SELECT COUNT(*) FROM declaration",
-			"SELECT * FROM declaration ORDER BY DATE DESC"
+			"SELECT COUNT(*) FROM declaration $predicate;",
+			"SELECT * FROM declaration $predicate ORDER BY DATE DESC;"
 		];
-		return executeQuery($sql, null, true, $start, $count, $status);
+		return executeQuery($sql, $params, true, $start, $count, $status);
 	}
 
 	/**
 	 * Fetches a paginated sub-list of Declarations signed by a specified Person.
 	 * @param $personId The ID of the Person whose Declarations are required.
 	 * @param $lastName The specified Person's last name.
+	 * @param $filter Search string.
 	 * @param $start The index of the first Declaration to retrieve.
 	 * @param $count The maximum number of Declarations to retrieve.
 	 * @return ResultSet|null A ResultSet containing the requested Declarations.
 	 */
-	function findDeclarationsBySignatory($personId, $lastName, $start, $count, &$status) {
-		$gotPersonId = isset($personId);
-		$gotLastName = isset($lastName);
-		if (!$gotPersonId) {
+	function findDeclarationsBySignatory($personId, $lastName, $filter, $start, $count, &$status) {
+		if (!isset($personId)) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
 		}
+		$params = [$personId];
 		$fields = implode(', ', DECLARATION_FIELDS);
+		if ($filter) {
+			$predicate = "AND LOWER(CONVERT(CONCAT_WS('|', $fields) USING UTF8)) LIKE ?";
+			$params[] = "%$filter%";
+		} else {
+			$predicate = '';
+		}
 		# @formatter:off
 		$sqlCountById =
 		  '(SELECT COUNT(*)'
 		. ' FROM declaration'
 		. ' JOIN signatory ON signatory.DECLARATION_ID = declaration.ID'
-		. ' WHERE signatory.PERSON_ID=?'
+		. ' WHERE signatory.PERSON_ID=? '
+		. $predicate
 		. ')';
 		$sqlDeclarationsBySignatoryId =
 		  'SELECT ' . $fields . ', TRUE AS LINKED'
 		. ' FROM declaration'
 		. ' JOIN signatory ON signatory.DECLARATION_ID = declaration.ID'
-		. ' WHERE signatory.PERSON_ID=?';
-		$params = [$personId];
-		if ($gotLastName) {
+		. ' WHERE signatory.PERSON_ID=? '
+		. $predicate;
+		if (isset($lastName)) {
 			$sqlCountByLastName =
 				'(SELECT COUNT(*)'
 				. ' FROM declaration'
-				. ' WHERE SIGNATORIES LIKE ? AND NOT EXISTS'
-				. '  (SELECT 0 FROM signatory WHERE signatory.DECLARATION_ID = declaration.ID AND signatory.PERSON_ID = ?))';
-			$sqlDeclarationsByLastName =
+				. ' WHERE SIGNATORIES LIKE ? '
+				. $predicate
+				. ' AND NOT EXISTS (SELECT 0 FROM signatory WHERE signatory.DECLARATION_ID = declaration.ID AND signatory.PERSON_ID = ?))';
+				$sqlDeclarationsByLastName =
 				  'SELECT ' . $fields . ', FALSE AS LINKED'
 				. ' FROM declaration'
-				. ' WHERE SIGNATORIES LIKE ? AND NOT EXISTS'
-				. '  (SELECT 0 FROM signatory WHERE signatory.DECLARATION_ID = declaration.ID AND signatory.PERSON_ID = ?)';
-			$plus = ' + ';
+				. ' WHERE SIGNATORIES LIKE ?'
+				. $predicate
+				. '  AND NOT EXISTS (SELECT 0 FROM signatory WHERE signatory.DECLARATION_ID = declaration.ID AND signatory.PERSON_ID = ? '
+				. ')';
+				$plus = ' + ';
 			$union = ' UNION ';
 			$params[] = '%' . $lastName . '%';
+			if ($filter)
+				$params[] = "%$filter%";
 			$params[] = $personId;
 		} else {
 			$sqlCountByLastName = '';
@@ -760,53 +832,73 @@
 
 	/**
 	 * Fetches a paginated sub-list of Quotations.
+	 * @param $filter Search string.
 	 * @param $start The index of the first Quotation to return.
 	 * @param $count The maximum number of Quotations to return.
 	 * @return ResultSet A ResultSet containing the requested Quotations.
 	 */
-	function findQuotations($start, $count, &$status) {
+	function findQuotations($filter, $start, $count, &$status) {
+		if ($filter) {
+			$fields = implode(', ', QUOTATION_FIELDS);
+			$predicate = "WHERE LOWER(CONVERT(CONCAT_WS('|', $fields) USING UTF8)) LIKE ?";
+			$params = ["%$filter%"];
+		} else {
+			$predicate = "";
+			$params = null;
+		}
 		$sql = [
-				"SELECT COUNT(*) FROM quotation",
-				"SELECT * FROM quotation ORDER BY DATE DESC"
+				"SELECT COUNT(*) FROM quotation $predicate;",
+				"SELECT * FROM quotation $predicate ORDER BY DATE DESC;"
 		];
-		return executeQuery($sql, null, true, $start, $count, $status);
+		return executeQuery($sql, $params, true, $start, $count, $status);
 	}
 
 	/**
 	 * Fetches a paginated sub-list of Quotations authored by a specified Person.
 	 * @param $personId The ID of the Person whose Quotations are required.
+	 * @param $filter Search string.
 	 * @param $start The index of the first Quotation to retrieve.
 	 * @param $count The maximum number of Quotations to retrieve.
 	 * @return ResultSet|null A ResultSet containing the requested Quotations.
 	 */
-	function findQuotationsByAuthor($personId, $lastName, $start, $count, &$status) {
-		$gotPersonId = isset($personId);
-		$gotLastName = isset($lastName);
-		if (!$gotPersonId) {
+	function findQuotationsByAuthor($personId, $lastName, $filter, $start, $count, &$status) {
+		if (!isset($personId)) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
 		}
 		$fields = implode(', ', QUOTATION_FIELDS);
-			# @formatter:off
+		$params = [$personId];
+		if ($filter) {
+			$predicate = "AND LOWER(CONVERT(CONCAT_WS('|', $fields) USING UTF8)) LIKE ?";
+			$params[] = "%$filter%";
+		} else {
+			$predicate = '';
+		}
+		# @formatter:off
 		$sqlCountById =
 			  'SELECT COUNT(*)'
 			. ' FROM quotation'
-			. ' WHERE PERSON_ID=?';
-		$sqlQuotationsByAuthorId =
+			. ' WHERE PERSON_ID=? '
+			. $predicate;
+			$sqlQuotationsByAuthorId =
 			  'SELECT ' . $fields . ', TRUE AS LINKED'
 			. ' FROM quotation'
-			. ' WHERE PERSON_ID=?';
-		$params = [$personId];
-		if ($gotLastName) {
+			. ' WHERE PERSON_ID=? '
+			. $predicate;
+		if (isset($lastName)) {
 			$sqlCountByLastName =
-				'AUTHOR LIKE ? AND PERSON_ID IS NULL';
+				'AUTHOR LIKE ? AND PERSON_ID IS NULL '
+				. $predicate;
 			$sqlQuotationsByLastName =
 				  'SELECT ' . $fields . ', FALSE AS LINKED'
 				. ' FROM quotation'
-				. ' WHERE AUTHOR LIKE ? AND PERSON_ID IS NULL';
+				. ' WHERE AUTHOR LIKE ? AND PERSON_ID IS NULL '
+				. $predicate;
 			$or = ' OR ';
 			$union = ' UNION ';
 			$params[] = '%' . $lastName . '%';
+			if ($filter)
+				$params[] = "%$filter%";
 		} else {
 			$sqlCountByLastName = '';
 			$sqlQuotationsByLastName = '';
@@ -845,8 +937,7 @@
 			$result = "/authorship/{$personId}/{$publicationId}";
 			$status = StatusCode::CREATED;
 		} else {
-			 // Following code not required, as the create operation is idempotent.
-// 			$status = StatusCode::CONFLICT;
+			 // NOTE: the create link operation is idempotent.
 			$result = null;
 		}
 		return $result;
@@ -866,10 +957,8 @@
 			$sql = 'DELETE FROM authorship WHERE PERSON_ID=? AND PUBLICATION_ID=?';
 			executeUpdate($sql, $params, $status);
 			$status = StatusCode::OK;
-			// Following code not required, as the delete operation is idempotent.
-// 		} else {
-// 			$status = StatusCode::NOT_FOUND;
 		}
+		// NOTE: the delete link operation is idempotent.
 		return null;
 	}
 
@@ -888,10 +977,9 @@
 			executeUpdate($sql, $params, $status);
 			$result = "/signatory/{$personId}/{$declarationId}";
 			$status = StatusCode::CREATED;
-			// Following code not required, as the create operation is idempotent.
  		} else {
-			$result = null;
-// 			$status = StatusCode::CONFLICT;
+ 			// NOTE: the create link operation is idempotent.
+ 			$result = null;
 		}
 		return $result;
 	}
@@ -910,10 +998,8 @@
 			$sql = 'DELETE FROM signatory WHERE PERSON_ID=? AND DECLARATION_ID=?';
 			executeUpdate($sql, $params, $status);
 			$status = StatusCode::OK;
-			// Following code not required, as the delete operation is idempotent.
-// 		} else {
-// 			$status = StatusCode::NOT_FOUND;
 		}
+		// NOTE: the delete link operation is idempotent.
 		return null;
 	}
 
