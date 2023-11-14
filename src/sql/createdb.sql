@@ -1,7 +1,7 @@
 -- --------------------------------------------------------
--- Host:                         raspberrypi-4.local
--- Server version:               10.11.4-MariaDB-1~deb12u1 - Debian 12
--- Server OS:                    debian-linux-gnu
+-- Host:                         DT-ADRIAN
+-- Server version:               10.10.2-MariaDB - mariadb.org binary distribution
+-- Server OS:                    Win64
 -- HeidiSQL Version:             11.3.0.6295
 -- --------------------------------------------------------
 
@@ -22,10 +22,10 @@ CREATE TABLE IF NOT EXISTS `authorship` (
   `PERSON_ID` int(10) unsigned NOT NULL,
   `PUBLICATION_ID` int(10) unsigned NOT NULL,
   PRIMARY KEY (`PERSON_ID`,`PUBLICATION_ID`) USING BTREE,
-  KEY `FK_PERSON` (`PERSON_ID`) USING BTREE,
-  KEY `FK_PUBLICATION` (`PUBLICATION_ID`) USING BTREE,
-  CONSTRAINT `FK_PERSON` FOREIGN KEY (`PERSON_ID`) REFERENCES `person` (`ID`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `FK_PUBLICATION` FOREIGN KEY (`PUBLICATION_ID`) REFERENCES `publication` (`ID`) ON DELETE CASCADE ON UPDATE CASCADE
+  KEY `AUTHORSHIP_PERSON` (`PERSON_ID`) USING BTREE,
+  KEY `AUTHORSHIP_PUBLICATION` (`PUBLICATION_ID`) USING BTREE,
+  CONSTRAINT `FK_AUTHORSHIP_PERSON` FOREIGN KEY (`PERSON_ID`) REFERENCES `person` (`ID`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `FK_AUTHORSHIP_PUBLICATION` FOREIGN KEY (`PUBLICATION_ID`) REFERENCES `publication` (`ID`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Association table that links PERSON to PUBLICATION.';
 
 -- Data exporting was unselected.
@@ -117,8 +117,8 @@ CREATE TABLE IF NOT EXISTS `quotation` (
   `URL` varchar(200) DEFAULT NULL COMMENT 'Web URL to the quotation',
   PRIMARY KEY (`ID`),
   KEY `AUTHOR` (`AUTHOR`),
-  KEY `PERSON` (`PERSON_ID`),
-  CONSTRAINT `PERSON` FOREIGN KEY (`PERSON_ID`) REFERENCES `person` (`ID`) ON DELETE SET NULL
+  KEY `QUOTATION_PERSON` (`PERSON_ID`) USING BTREE,
+  CONSTRAINT `FK_QUOTATION_PERSON` FOREIGN KEY (`PERSON_ID`) REFERENCES `person` (`ID`) ON DELETE SET NULL ON UPDATE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Quotations by leading climate sceptics';
 
 -- Data exporting was unselected.
@@ -127,7 +127,11 @@ CREATE TABLE IF NOT EXISTS `quotation` (
 CREATE TABLE IF NOT EXISTS `signatory` (
   `PERSON_ID` int(10) unsigned NOT NULL COMMENT 'The person ID',
   `DECLARATION_ID` int(10) unsigned NOT NULL COMMENT 'The declaration ID',
-  PRIMARY KEY (`PERSON_ID`,`DECLARATION_ID`)
+  PRIMARY KEY (`PERSON_ID`,`DECLARATION_ID`),
+  KEY `SIGNATORY_PERSON` (`PERSON_ID`) USING BTREE,
+  KEY `SIGNATORY_DECLARATION` (`DECLARATION_ID`) USING BTREE,
+  CONSTRAINT `FK_SIGNATORY_PERSON` FOREIGN KEY (`PERSON_ID`) REFERENCES `person` (`ID`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `FK_SIGNATORY_DECLARATION` FOREIGN KEY (`DECLARATION_ID`) REFERENCES `declaration` (`ID`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Joint table for signatories of declarations';
 
 -- Data exporting was unselected.
