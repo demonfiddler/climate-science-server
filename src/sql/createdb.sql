@@ -1,7 +1,7 @@
 -- --------------------------------------------------------
--- Host:                         DT-ADRIAN
--- Server version:               10.10.2-MariaDB - mariadb.org binary distribution
--- Server OS:                    Win64
+-- Host:                         raspberrypi-4.local
+-- Server version:               10.11.4-MariaDB-1~deb12u1 - Debian 12
+-- Server OS:                    debian-linux-gnu
 -- HeidiSQL Version:             11.3.0.6295
 -- --------------------------------------------------------
 

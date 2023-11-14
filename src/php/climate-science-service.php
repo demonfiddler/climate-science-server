@@ -5,8 +5,11 @@
 	* Licensed under the GNU Affero General Public License v.3 https://www.gnu.org/licenses/agpl-3.0.html
 	*/
 
-	const JWT_SECRET = "JWT_SECRET"; // JWT signing key.
+	const JWT_SECRET = 'JWT_SECRET'; // JWT signing key.
 	const JWT_TTL = 'JWT_TTL'; // JWT lifetime.
+	const DB_URL = 'DB_URL'; // Database URL.
+	const DB_USER = 'DB_USER'; // Database user.
+	const DB_PASSWORD = 'DB_PASSWORD'; // Database password.
 	const AUTHORIZATION = 'Authorization';
 	const DELETE = 'DELETE';
 	const GET = 'GET';
@@ -92,9 +95,6 @@
 	// @formatter:on
 	const MIME_TYPE_APPLICATION_JSON = 'application/json';
 	const MIME_TYPE_APPLICATION_XML = 'application/xml';
-	const URL = 'mysql:host=DT-ADRIAN.local;dbname=climate';
-	const USER = 'climate';
-	const PASSWORD = 'climate';
 
 	require './StatusCode.php';
 	use PH7\JustHttp\StatusCode;
@@ -111,6 +111,8 @@
 	}
 
 	try {
+		readenv();
+
 		// When running as CLI, HTTP method and request URI are passed as command line arguments.
 		if (isCli()) {
 			if ($argc != 3)
@@ -121,10 +123,11 @@
 			$_SERVER['REQUEST_METHOD'] = strtoupper($argv[1]);
 			$_SERVER['REQUEST_URI'] = $argv[2];
 		}
-		preg_match('#^/climate-service/([^?]*)(?:\?(.*))?$#', $_SERVER['REQUEST_URI'], $matches);
+		preg_match('#^/climate-science-service/([^?]*)(?:\?(.*))?$#', $_SERVER['REQUEST_URI'], $matches);
+		$matchCount = count($matches);
 		$method = $_SERVER['REQUEST_METHOD'];
-		$path = explode('/', $matches[1]);
-		if (isset($matches[2]))
+		$path = $matchCount > 0 ? explode('/', $matches[1]) : [];
+		if ($matchCount > 1 && isset($matches[2]))
 			parse_str($matches[2], $params);
 		else
 			$params = [];
@@ -187,7 +190,9 @@
 			case 'signatory':
 				$result = dispatchSignatoryRequest($method, $path, $params, $status);
 				break;
-			default :
+			default:
+				$status = StatusCode::BAD_REQUEST;
+				$result = null;
 				break;
 		}
 		return $result;
@@ -1019,8 +1024,12 @@
 		if (getenv(JWT_SECRET) == false) {
 			$stream = fopen('./.env', 'r');
 			if ($stream !== false) {
-				while (($line = fgets($stream)) !== false)
-					putenv($line);
+				while (($line = fgets($stream)) !== false) {
+					if (strlen($line) == 0 || $line[0] == '#')
+						continue;
+					$setting = str_replace(["\r", "\n"], '', $line);
+					putenv($setting);
+				}
 				fclose($stream);
 			} else {
 				throw new Exception('Environment file missing');
@@ -1100,7 +1109,7 @@
 		$countSql = $isSqlArray ? $sql[0] : null;
 		$querySql = $isSqlArray ? $sql[1] : $sql;
 
-		$pdo = new PDO(URL, USER, PASSWORD);
+		$pdo = new PDO(getenv(DB_URL), getenv(DB_USER), getenv(DB_PASSWORD));
 
 		// If it's a multi-row result set, we must first count the rows (since we may not be returning all of them).
 		if ($multi && $countSql) {
@@ -1156,7 +1165,7 @@
 	 * @return bool true on success, false on failure.
 	 */
 	function executeUpdate($sql, $params, &$status) : bool {
-		$pdo = new PDO(URL, USER, PASSWORD);
+		$pdo = new PDO(getenv(DB_URL), getenv(DB_USER), getenv(DB_PASSWORD));
 		$stmt = $pdo->prepare($sql);
 		$result = $stmt->execute($params);
 		$stmt->closeCursor();
@@ -1200,7 +1209,6 @@
 	 * @return string The signed JWT bearer token.
 	 */
 	function generateJwt(object $user) : string {
-		readenv();
 		$jwtSecret = getenv(JWT_SECRET);
 		$jwtTtl = intval(getenv(JWT_TTL));
 

@@ -16,7 +16,10 @@ externalDocs:
   description: Find out more about climate sceptics and science
   url: https://campaign-resources.org/media/Climate%20Science/Climate%20Sceptics.pdf
 servers:
-  - url: http://debian.local/climate-service
+  - url: http://debian.local/climate-science-service
+    description: Local development server
+  - url: https://campaign-resources.org/climate-science-service
+    description: Production server
 tags:
   - name: Scientists
     description: Everything about climate sceptic scientists
