@@ -3,15 +3,20 @@ ALL PEOPLE, ORDERED BY LAST NAME
 SELECT TITLE, LAST_NAME, FIRST_NAME, COUNTRY, DESCRIPTION, QUALIFICATIONS, CHECKED, PUBLISHED FROM person ORDER BY LAST_NAME, FIRST_NAME;
 
 -- STATISTICS
-SELECT 'All' AS `CATEGORY`, COUNT(*) AS `COUNT` FROM person UNION
-SELECT 'Professors', COUNT(*) FROM person WHERE TITLE='Prof.' UNION
-SELECT 'Doctorates', COUNT(*) FROM person WHERE TITLE='Dr.' UNION
-SELECT 'Meteorologists', COUNT(*) FROM person WHERE DESCRIPTION LIKE '%eteorolog%' OR DESCRIPTION LIKE '%eather%' UNION
-SELECT 'Climatologists', COUNT(*) FROM person WHERE DESCRIPTION LIKE '%limatolog%' UNION
-SELECT 'IPCC', COUNT(*) FROM person WHERE DESCRIPTION LIKE '%IPCC%' UNION
-SELECT 'Nobel Laureates', COUNT(*) FROM person WHERE DESCRIPTION LIKE '%Nobel%' AND DESCRIPTION NOT LIKE '%Akzo%' UNION
-SELECT 'Published', COUNT(*) FROM person WHERE PUBLISHED UNION
-SELECT 'Checked', COUNT(*) FROM person WHERE CHECKED;
+SELECT 'Persons' AS `CATEGORY`, COUNT(*) AS `COUNT`, 'Total number of people in the database' AS DESCRIPTION FROM person UNION
+SELECT 'Publications', COUNT(*), 'Total number of publications in the database' FROM publication UNION
+SELECT 'Declarations', COUNT(*), 'Total number of public declarations in the database' FROM declaration UNION
+SELECT 'Quotations', COUNT(*), 'Total number of quotations in the database' FROM quotation UNION
+SELECT 'Professors', COUNT(*), 'Number of university professors (past or present)' FROM person WHERE TITLE='Prof.' UNION
+SELECT 'Doctorates', COUNT(*), 'Number qualified to doctoral or higher level' FROM person WHERE TITLE='Dr.' UNION
+SELECT 'Meteorologists', COUNT(*), 'Number of qualified meterologists' FROM person WHERE DESCRIPTION LIKE '%meteorolog%' OR DESCRIPTION LIKE '%weather%' UNION
+SELECT 'Climatologists', COUNT(*), 'Number of climatologists' FROM person WHERE DESCRIPTION LIKE '%climatolog%' UNION
+SELECT 'IPCC', COUNT(*), 'Number of scientists who work(ed) for IPCC' FROM person WHERE DESCRIPTION LIKE '%IPCC%' AND DESCRIPTION NOT LIKE '%NIPCC%' UNION
+SELECT 'NASA', COUNT(*), 'Number of scientists who work(ed) for NASA' FROM person WHERE DESCRIPTION LIKE '%NASA%' UNION
+SELECT 'NOAA', COUNT(*), 'Number of scientists who work(ed) for NOAA' FROM person WHERE DESCRIPTION LIKE '%NOAA%' UNION
+SELECT 'Nobel Laureates', COUNT(*), 'Number of Nobel prize recipients' FROM person WHERE DESCRIPTION LIKE '%Nobel%' AND DESCRIPTION NOT LIKE '%Akzo%' UNION
+SELECT 'Published', COUNT(*), 'Number of scientists who have published peer-reviewed science' FROM person WHERE PUBLISHED UNION
+SELECT 'Checked', COUNT(*), 'Number of scientists whose credentials have been checked' FROM person WHERE CHECKED;
 
 -- PERSON COUNT BY RATING
 SELECT RATING, COUNT(*) FROM person GROUP BY RATING ORDER BY RATING DESC;

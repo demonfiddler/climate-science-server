@@ -4,7 +4,7 @@ info:
   description: |-
     This is a JSON REST API for fetching details of climate scientists and their publications, based on the OpenAPI 3.1 specification.
     Some useful links:
-    - [The Climate Science directory](https://campaign-resources.org/media/Climate%20Science)
+    - [The Climate Science page](https://campaign-resources.org/climate.html)
   termsOfService: https://campaign-resources.org/climate.html
   contact:
     email: adrianp.quatinus@virginmedia.com
@@ -53,6 +53,11 @@ tags:
       url: http://swagger.io
   - name: Security
     description: Authentication and authorisation
+    externalDocs:
+      description: Find out more
+      url: http://swagger.io
+  - name: Statistics
+    description: Database metrics
     externalDocs:
       description: Find out more
       url: http://swagger.io
@@ -364,6 +369,22 @@ paths:
           $ref: '#/components/responses/Deleted'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /statistic/find:
+    get:
+      tags:
+        - Statistics
+      summary: Fetch database statistics
+      description: Show record counts for various categories of database entry
+      operationId: findStatistics
+      parameters:
+        - $ref: '#/components/parameters/topic'
+        - $ref: '#/components/parameters/startOpt'
+        - $ref: '#/components/parameters/countOpt'
+      responses:
+        '200':
+          $ref: '#/components/responses/Statistics'
+        '400':
+          $ref: '#/components/responses/Invalid'
 components:
   schemas:
     Credentials:
@@ -374,6 +395,7 @@ components:
           description: The user ID or email address
         password:
           type: string
+          format: password
           description: The password
     Person:
       type: object
@@ -545,7 +567,22 @@ components:
           description: The quotation URL
         LINKED:
           type: boolean
-          description: Indicates whether the quotation is explicitly linked to a person.
+          description: Indicates whether the quotation is explicitly linked to a person
+    Statistic:
+      type: object
+      properties:
+        CATEGORY:
+          type: string
+          maxLength: 16
+          description: The metric CATEGORY
+        COUNT:
+          type: integer
+          format: int32
+          description: The record count for the category
+        DESCRIPTION:
+          type: string
+          maxLength: 80
+          description: Textual description of the category
   parameters:
     personId:
       name: personId
@@ -619,6 +656,16 @@ components:
       schema:
         type: integer
         format: int32
+    topic:
+      name: topic
+      in: query
+      description: Topic name
+      required: true
+      schema:
+        type: string
+        description: The topic for which metrics are requested
+        enum:
+          - climate
     lastNameOpt:
       name: lastName
       in: query
@@ -673,13 +720,21 @@ components:
           schema:
             $ref: '#/components/schemas/Person'
     Persons:
-      description: Success, returns an array of Person objects.
+      description: Success, returns a total count and a pageful of Person objects.
       content:
         application/json:
           schema:
-            type: array
-            items:
-              $ref: '#/components/schemas/Person'
+            type: object
+            properties:
+              count:
+                type: integer
+                format: int32
+                description: Total item count
+              records:
+                type: array
+                description: The requested pageful of items
+                items:
+                  $ref: '#/components/schemas/Person'
     Publication:
       description: Success, returns a Publication object
       content:
@@ -687,13 +742,21 @@ components:
           schema:
             $ref: '#/components/schemas/Publication'
     Publications:
-      description: Success, returns an array of Publication objects.
+      description: Success, returns a total count and a pageful of Publication objects.
       content:
         application/json:
           schema:
-            type: array
-            items:
-              $ref: '#/components/schemas/Publication'
+            type: object
+            properties:
+              count:
+                type: integer
+                format: int32
+                description: Total item count
+              records:
+                type: array
+                description: The requested pageful of items
+                items:
+                  $ref: '#/components/schemas/Publication'
     Declaration:
       description: Success, returns a Declaration object
       content:
@@ -701,13 +764,21 @@ components:
           schema:
             $ref: '#/components/schemas/Declaration'
     Declarations:
-      description: Success, returns an array of Declaration objects.
+      description: Success, returns a total count and a pageful of Declaration objects.
       content:
         application/json:
           schema:
-            type: array
-            items:
-              $ref: '#/components/schemas/Declaration'
+            type: object
+            properties:
+              count:
+                type: integer
+                format: int32
+                description: Total item count
+              records:
+                type: array
+                description: The requested pageful of items
+                items:
+                  $ref: '#/components/schemas/Declaration'
     Quotation:
       description: Success, returns a Quotation object
       content:
@@ -715,13 +786,37 @@ components:
           schema:
             $ref: '#/components/schemas/Quotation'
     Quotations:
-      description: Success, returns an array of Quotation objects.
+      description: Success, returns a total count and a pageful of Quotation objects
       content:
         application/json:
           schema:
-            type: array
-            items:
-              $ref: '#/components/schemas/Quotation'
+            type: object
+            properties:
+              count:
+                type: integer
+                format: int32
+                description: Total item count
+              records:
+                type: array
+                description: The requested pageful of items
+                items:
+                  $ref: '#/components/schemas/Quotation'
+    Statistics:
+      description: Success, returns a total count and a pageful of Statistic objects
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              count:
+                type: integer
+                format: int32
+                description: Total item count
+              records:
+                type: array
+                description: The requested pageful of items
+                items:
+                  $ref: '#/components/schemas/Statistic'
     Created:
       description: Success, resource created
     Deleted:
@@ -729,13 +824,11 @@ components:
     Updated:
       description: Success, resource updated
     Invalid:
-      description: Invalid start or count value
+      description: Bad request (e.g., invalid start or count query parameter)
     NotFound:
       description: Referenced resource not found
     Unauthorized:
       description: Access token is missing or invalid
-    Forbidden:
-      description: Forbidden. Operation only available to local clients.
   securitySchemes:
     bearerAuth:
       type: http

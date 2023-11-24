@@ -25,72 +25,76 @@
 	const PARAM_PUBLICATION_ID = 'publicationId';
 	const PARAM_DECLARATION_ID = 'declarationId';
 	const PARAM_QUOTATION_ID = 'quotationId';
+	const PARAM_TOPIC = 'topic';
 	// @formatter:off
 	const FIND_DEFAULTS = [
-			PARAM_FILTER => null,
-			PARAM_START => 0,
-			PARAM_COUNT => 0
+		PARAM_FILTER => null,
+		PARAM_START => 0,
+		PARAM_COUNT => 0
 	];
 	const USER_DEFAULTS = [
-			PARAM_PERSON_ID => null,
-			PARAM_LAST_NAME => null
+		PARAM_PERSON_ID => null,
+		PARAM_LAST_NAME => null
 	];
 	const AUTHORSHIP_DEFAULTS = [
-			PARAM_PERSON_ID => null,
-			PARAM_PUBLICATION_ID => null
+		PARAM_PERSON_ID => null,
+		PARAM_PUBLICATION_ID => null
 	];
 	const SIGNATORY_DEFAULTS = [
-			PARAM_PERSON_ID => null,
-			PARAM_DECLARATION_ID => null
+		PARAM_PERSON_ID => null,
+		PARAM_DECLARATION_ID => null
+	];
+	const STATS_DEFAULTS = [
+		PARAM_TOPIC => null
 	];
 	const PERSON_FIELDS = [
-			'ID',
-			'TITLE',
-			'FIRST_NAME',
-			'NICKNAME',
-			'PREFIX',
-			'LAST_NAME',
-			'SUFFIX',
-			'ALIAS',
-			'DESCRIPTION',
-			'QUALIFICATIONS',
-			'COUNTRY',
-			'RATING',
-			'CHECKED',
-			'PUBLISHED'
+		'ID',
+		'TITLE',
+		'FIRST_NAME',
+		'NICKNAME',
+		'PREFIX',
+		'LAST_NAME',
+		'SUFFIX',
+		'ALIAS',
+		'DESCRIPTION',
+		'QUALIFICATIONS',
+		'COUNTRY',
+		'RATING',
+		'CHECKED',
+		'PUBLISHED'
 	];
 	const PUBLICATION_FIELDS = [
-			'ID',
-			'TITLE',
-			'AUTHORS',
-			'JOURNAL',
-			'PUBLICATION_TYPE_ID',
-			'PUBLICATION_DATE',
-			'PUBLICATION_YEAR',
-			'PEER_REVIEWED',
-			'DOI',
-			'ISSN_ISBN',
-			'URL',
-			'ACCESSED'
+		'ID',
+		'TITLE',
+		'AUTHORS',
+		'JOURNAL',
+		'PUBLICATION_TYPE_ID',
+		'PUBLICATION_DATE',
+		'PUBLICATION_YEAR',
+		'PEER_REVIEWED',
+		'DOI',
+		'ISSN_ISBN',
+		'URL',
+		'ACCESSED'
 	];
 	const DECLARATION_FIELDS = [
-			'ID',
-			'TYPE',
-			'TITLE',
-			'DATE',
-			'COUNTRY',
-			'URL',
-			'SIGNATORIES',
-			'SIGNATORY_COUNT',
+		'ID',
+		'TYPE',
+		'TITLE',
+		'DATE',
+		'COUNTRY',
+		'URL',
+		'SIGNATORIES',
+		'SIGNATORY_COUNT',
 	];
 	const QUOTATION_FIELDS = [
-			'ID',
-			'PERSON_ID',
-			'AUTHOR',
-			'TEXT',
-			'DATE',
-			'SOURCE',
-			'URL',
+		'ID',
+		'PERSON_ID',
+		'AUTHOR',
+		'TEXT',
+		'DATE',
+		'SOURCE',
+		'URL',
 	];
 	// @formatter:on
 	const MIME_TYPE_APPLICATION_JSON = 'application/json';
@@ -189,6 +193,9 @@
 				break;
 			case 'signatory':
 				$result = dispatchSignatoryRequest($method, $path, $params, $status);
+				break;
+			case 'statistics':
+				$result = dispatchStatisticsRequest($method, $path, $params, $status);
 				break;
 			default:
 				$status = StatusCode::BAD_REQUEST;
@@ -454,7 +461,7 @@
 	}
 
 	/**
-	 * Dispatches an Signatory-related REST request.
+	 * Dispatches a Signatory-related REST request.
 	 * @param $method The HTTP method being invoked.
 	 * @param $path The HTTP request URI path.
 	 * @param $params The HTTP request parameters (from the query string).
@@ -483,6 +490,40 @@
 				break;
 			case OPTIONS:
 				$result = emitWriteOptions('PUT, DELETE, OPTIONS', $status);
+				break;
+			default:
+				$status = StatusCode::METHOD_NOT_ALLOWED;
+		}
+		return $result;
+	}
+
+	/**
+	 * Dispatches a Statistics-related REST request.
+	 * @param $method The HTTP method being invoked.
+	 * @param $path The HTTP request URI path.
+	 * @param $params The HTTP request parameters (from the query string).
+	 * @param $status The HTTP status code to return, passed by reference.
+	 * @return ResultSet|object|null The result to return in the response body.
+	 */
+   function dispatchStatisticsRequest($method, $path, $params, &$status) {
+		if (!checkArray($path, 2, 2)) {
+			$status = StatusCode::BAD_REQUEST;
+			return null;
+		}
+
+		setDefaults($params, FIND_DEFAULTS);
+		setDefaults($params, STATS_DEFAULTS);
+		switch ($method) {
+			case GET:
+				switch ($path[1]) {
+					# GET /statistics/find?topic=climate&start=0&count=0
+					case 'find':
+						$result = findStatistics($params[PARAM_TOPIC], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						break;
+					default:
+						$status = StatusCode::BAD_REQUEST;
+						break;
+				}
 				break;
 			default:
 				$status = StatusCode::METHOD_NOT_ALLOWED;
@@ -1006,6 +1047,56 @@
 		}
 		// NOTE: the delete link operation is idempotent.
 		return null;
+	}
+
+	/**
+	 * Returns database statistics about the specified topic.
+	 * @param $topic The topic for which metrics are requested.
+	 * @param $start The index of the first Statistic to retrieve.
+	 * @param $count The maximum number of Statistics to retrieve.
+	 * @return ResultSet|null A ResultSet containing the requested Statistics.
+	 */
+	function findStatistics($topic, $start, $count, &$status) {
+		if (!$topic) {
+			$status = StatusCode::BAD_REQUEST;
+			return null;
+		}
+
+		switch ($topic) {
+			case 'climate':
+				$result = findClimateStatistics($start, $count, $status);
+				break;
+			default:
+				$status = StatusCode::BAD_REQUEST;
+		}
+		return $result;
+	}
+
+	/**
+	 * Returns database statistics about the climate topic.
+	 * @param $start The index of the first Statistic to retrieve.
+	 * @param $count The maximum number of Statistics to retrieve.
+	 * @return ResultSet|null A ResultSet containing the requested Statistics.
+	 */
+	function findClimateStatistics($start, $count, &$status) {
+		$countSql = "SELECT 14 AS COUNT";
+		$selectSql =
+			"SELECT 'Persons' AS `CATEGORY`, COUNT(*) AS `COUNT`, 'Total number of people in the database' AS DESCRIPTION FROM person UNION "
+		  . "SELECT 'Publications', COUNT(*), 'Total number of publications in the database' FROM publication UNION "
+		  . "SELECT 'Declarations', COUNT(*), 'Total number of public declarations in the database' FROM declaration UNION "
+		  . "SELECT 'Quotations', COUNT(*), 'Total number of quotations in the database' FROM quotation UNION "
+		  . "SELECT 'Professors', COUNT(*), 'Number of university professors (past or present)' FROM person WHERE TITLE='Prof.' UNION "
+		  . "SELECT 'Doctorates', COUNT(*), 'Number qualified to doctoral or higher level (additional to professors)' FROM person WHERE TITLE='Dr.' UNION "
+		  . "SELECT 'Meteorologists', COUNT(*), 'Number of qualified meterologists' FROM person WHERE DESCRIPTION LIKE '%meteorolog%' OR DESCRIPTION LIKE '%weather%' UNION "
+		  . "SELECT 'Climatologists', COUNT(*), 'Number of climatologists' FROM person WHERE DESCRIPTION LIKE '%climatolog%' UNION "
+		  . "SELECT 'IPCC', COUNT(*), 'Number of scientists who work(ed) for IPCC' FROM person WHERE DESCRIPTION LIKE '%IPCC%' AND DESCRIPTION NOT LIKE '%NIPCC%' UNION "
+		  . "SELECT 'NASA', COUNT(*), 'Number of scientists who work(ed) for NASA' FROM person WHERE DESCRIPTION LIKE '%NASA%' UNION "
+		  . "SELECT 'NOAA', COUNT(*), 'Number of scientists who work(ed) for NOAA' FROM person WHERE DESCRIPTION LIKE '%NOAA%' UNION "
+		  . "SELECT 'Nobel Laureates', COUNT(*), 'Number of Nobel prize recipients' FROM person WHERE DESCRIPTION LIKE '%Nobel%' AND DESCRIPTION NOT LIKE '%Akzo%' UNION "
+		  . "SELECT 'Published', COUNT(*), 'Number of scientists who have published peer-reviewed science' FROM person WHERE PUBLISHED UNION "
+		  . "SELECT 'Checked', COUNT(*), 'Number of scientists whose credentials have been checked' FROM person WHERE CHECKED;";
+		$sql = [$countSql, $selectSql];
+		return executeQuery($sql, null, true, $start, $count, $status);
 	}
 
 	/**
