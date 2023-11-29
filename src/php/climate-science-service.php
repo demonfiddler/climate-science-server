@@ -1375,6 +1375,7 @@
 						return validateJwt($jwt, $status);
 					}
 				}
+				header('WWW-Authenticate: Bearer');
 				$status = StatusCode::UNAUTHORIZED;
 				return false;
 			default:
