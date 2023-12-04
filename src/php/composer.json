@@ -1,0 +1,15 @@
+{
+    "name": "demonfiddler/climate-science-server",
+    "description": "A REST API to a climate science database",
+    "type": "project",
+    "require": {
+        "tecnickcom/tcpdf": "^6.6"
+    },
+    "license": "AGPL-3.0",
+    "authors": [
+        {
+            "name": "Adrian Price",
+            "email": "demonfiddler@virginmedia.com"
+        }
+    ]
+}

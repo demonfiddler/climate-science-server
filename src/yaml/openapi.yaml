@@ -20,6 +20,7 @@ servers:
     description: Local development server
   - url: https://campaign-resources.org/climate-science-service
     description: Production server
+security: []
 tags:
   - name: Scientists
     description: Everything about climate sceptic scientists
@@ -74,6 +75,8 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/Authenticated'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /person/{personId}:
     get:
       tags:
@@ -99,6 +102,7 @@ paths:
         - $ref: '#/components/parameters/filterOpt'
         - $ref: '#/components/parameters/startOpt'
         - $ref: '#/components/parameters/countOpt'
+        - $ref: '#/components/parameters/contentTypeOpt'
       responses:
         '200':
           $ref: '#/components/responses/Persons'
@@ -116,6 +120,7 @@ paths:
         - $ref: '#/components/parameters/filterOpt'
         - $ref: '#/components/parameters/startOpt'
         - $ref: '#/components/parameters/countOpt'
+        - $ref: '#/components/parameters/contentTypeOpt'
       responses:
         '200':
           $ref: '#/components/responses/Persons'
@@ -133,6 +138,7 @@ paths:
         - $ref: '#/components/parameters/filterOpt'
         - $ref: '#/components/parameters/startOpt'
         - $ref: '#/components/parameters/countOpt'
+        - $ref: '#/components/parameters/contentTypeOpt'
       responses:
         '200':
           $ref: '#/components/responses/Persons'
@@ -163,6 +169,7 @@ paths:
         - $ref: '#/components/parameters/filterOpt'
         - $ref: '#/components/parameters/startOpt'
         - $ref: '#/components/parameters/countOpt'
+        - $ref: '#/components/parameters/contentTypeOpt'
       responses:
         '200':
           $ref: '#/components/responses/Publications'
@@ -181,6 +188,7 @@ paths:
         - $ref: '#/components/parameters/filterOpt'
         - $ref: '#/components/parameters/startOpt'
         - $ref: '#/components/parameters/countOpt'
+        - $ref: '#/components/parameters/contentTypeOpt'
       responses:
         '200':
           $ref: '#/components/responses/Publications'
@@ -211,6 +219,7 @@ paths:
         - $ref: '#/components/parameters/filterOpt'
         - $ref: '#/components/parameters/startOpt'
         - $ref: '#/components/parameters/countOpt'
+        - $ref: '#/components/parameters/contentTypeOpt'
       responses:
         '200':
           $ref: '#/components/responses/Declarations'
@@ -229,6 +238,7 @@ paths:
         - $ref: '#/components/parameters/filterOpt'
         - $ref: '#/components/parameters/startOpt'
         - $ref: '#/components/parameters/countOpt'
+        - $ref: '#/components/parameters/contentTypeOpt'
       responses:
         '200':
           $ref: '#/components/responses/Declarations'
@@ -255,7 +265,7 @@ paths:
       description: Links or unlinks a specified Person as the origin of a specified Quotation.
       operationId: linkQuotationAuthor
       security:
-        - bearerAuth: []
+        - JWT: []
       parameters:
         - $ref: '#/components/parameters/quotationIdPath'
         - $ref: '#/components/parameters/personIdOpt'
@@ -272,10 +282,12 @@ paths:
         - Quotations
       summary: Finds quotations
       description: Results can be paginated by supplying start and record count
+      operationId: findQuotations
       parameters:
         - $ref: '#/components/parameters/filterOpt'
         - $ref: '#/components/parameters/startOpt'
         - $ref: '#/components/parameters/countOpt'
+        - $ref: '#/components/parameters/contentTypeOpt'
       responses:
         '200':
           $ref: '#/components/responses/Quotations'
@@ -294,6 +306,7 @@ paths:
         - $ref: '#/components/parameters/filterOpt'
         - $ref: '#/components/parameters/startOpt'
         - $ref: '#/components/parameters/countOpt'
+        - $ref: '#/components/parameters/contentTypeOpt'
       responses:
         '200':
           $ref: '#/components/responses/Quotations'
@@ -307,7 +320,7 @@ paths:
       description: Links a person to a publication.
       operationId: createAuthorship
       security:
-        - bearerAuth: []
+        - JWT: []
       parameters:
         - $ref: '#/components/parameters/personIdPath'
         - $ref: '#/components/parameters/publicationIdPath'
@@ -325,7 +338,7 @@ paths:
       description: Deletes the link between a person and a publication. Operation only available to local clients.
       operationId: deleteAuthorship
       security:
-        - bearerAuth: []
+        - JWT: []
       parameters:
         - $ref: '#/components/parameters/personIdPath'
         - $ref: '#/components/parameters/publicationIdPath'
@@ -342,7 +355,7 @@ paths:
       description: Links a person to a declaration.
       operationId: createSignatory
       security:
-        - bearerAuth: []
+        - JWT: []
       parameters:
         - $ref: '#/components/parameters/personIdPath'
         - $ref: '#/components/parameters/declarationIdPath'
@@ -360,7 +373,7 @@ paths:
       description: Deletes the link between a person and a declaration. Operation only available to local clients.
       operationId: deleteSignatory
       security:
-        - bearerAuth: []
+        - JWT: []
       parameters:
         - $ref: '#/components/parameters/personIdPath'
         - $ref: '#/components/parameters/declarationIdPath'
@@ -380,6 +393,7 @@ paths:
         - $ref: '#/components/parameters/topic'
         - $ref: '#/components/parameters/startOpt'
         - $ref: '#/components/parameters/countOpt'
+        - $ref: '#/components/parameters/contentTypeOpt'
       responses:
         '200':
           $ref: '#/components/responses/Statistics'
@@ -635,15 +649,7 @@ components:
     declarationIdPath:
       name: declarationId
       in: path
-      description: Unique quotation identifier
-      required: true
-      schema:
-        type: integer
-        format: int32
-    quotationId:
-      name: quotationId
-      in: query
-      description: Unique quotation identifier
+      description: Unique declaration identifier
       required: true
       schema:
         type: integer
@@ -699,6 +705,19 @@ components:
         type: integer
         format: int32
         default: 0
+    contentTypeOpt:
+      name: contentType
+      in: query
+      description: Overrides the HTTP request's Accept header, since browsers ignore the type attribute in, for example,
+        <a href="..." download="filename.pdf" type="application/pdf">filename.pdf</a>. In other words, there's
+        no way for an HTML link to force a browser to request the necessary content type.
+      required: false
+      schema:
+        enum:
+          - application/json
+          - application/pdf
+          - text/csv
+        default: application/json
   requestBodies:
     Credentials:
       description:  Authentication credentials
@@ -735,6 +754,13 @@ components:
                 description: The requested pageful of items
                 items:
                   $ref: '#/components/schemas/Person'
+        application/pdf:
+          schema: 
+            type: string
+            format: binary
+        text/csv:
+          schema: 
+            type: string
     Publication:
       description: Success, returns a Publication object
       content:
@@ -757,6 +783,13 @@ components:
                 description: The requested pageful of items
                 items:
                   $ref: '#/components/schemas/Publication'
+        application/pdf:
+          schema: 
+            type: string
+            format: binary
+        text/csv:
+          schema: 
+            type: string
     Declaration:
       description: Success, returns a Declaration object
       content:
@@ -779,6 +812,13 @@ components:
                 description: The requested pageful of items
                 items:
                   $ref: '#/components/schemas/Declaration'
+        application/pdf:
+          schema: 
+            type: string
+            format: binary
+        text/csv:
+          schema: 
+            type: string
     Quotation:
       description: Success, returns a Quotation object
       content:
@@ -801,6 +841,13 @@ components:
                 description: The requested pageful of items
                 items:
                   $ref: '#/components/schemas/Quotation'
+        application/pdf:
+          schema: 
+            type: string
+            format: binary
+        text/csv:
+          schema: 
+            type: string
     Statistics:
       description: Success, returns a total count and a pageful of Statistic objects
       content:
@@ -817,6 +864,13 @@ components:
                 description: The requested pageful of items
                 items:
                   $ref: '#/components/schemas/Statistic'
+        application/pdf:
+          schema: 
+            type: string
+            format: binary
+        text/csv:
+          schema: 
+            type: string
     Created:
       description: Success, resource created
     Deleted:
@@ -828,9 +882,9 @@ components:
     NotFound:
       description: Referenced resource not found
     Unauthorized:
-      description: Access token is missing or invalid
+      description: Access token is missing or invalid, or invalid login credentials
   securitySchemes:
-    bearerAuth:
+    JWT:
       type: http
       scheme: bearer
       bearerFormat: JWT

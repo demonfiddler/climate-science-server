@@ -1,7 +1,7 @@
 -- --------------------------------------------------------
--- Host:                         DT-ADRIAN
--- Server version:               10.10.2-MariaDB - mariadb.org binary distribution
--- Server OS:                    Win64
+-- Host:                         raspberrypi-4.local
+-- Server version:               10.11.4-MariaDB-1~deb12u1 - Debian 12
+-- Server OS:                    debian-linux-gnu
 -- HeidiSQL Version:             11.3.0.6295
 -- --------------------------------------------------------
 
@@ -16,6 +16,15 @@
 -- Dumping database structure for climate
 CREATE DATABASE IF NOT EXISTS `climate` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci */;
 USE `climate`;
+
+-- Dumping structure for table climate.abbreviation
+CREATE TABLE IF NOT EXISTS `abbreviation` (
+  `TITLE` varchar(100) NOT NULL COMMENT 'The journal, etc. title',
+  `ABBREVIATION` varchar(50) NOT NULL COMMENT 'The abbreviation for TITLE',
+  PRIMARY KEY (`TITLE`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Lookup table for finding abbreviations for journal titles, etc.';
+
+-- Data exporting was unselected.
 
 -- Dumping structure for table climate.authorship
 CREATE TABLE IF NOT EXISTS `authorship` (
@@ -41,7 +50,7 @@ CREATE TABLE IF NOT EXISTS `declaration` (
   `SIGNATORIES` text DEFAULT NULL,
   `SIGNATORY_COUNT` smallint(6) DEFAULT NULL,
   PRIMARY KEY (`ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Details of public declarations and open letters expressing climate scepticism';
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Details of public declarations and open letters expressing climate scepticism';
 
 -- Data exporting was unselected.
 
@@ -51,7 +60,7 @@ CREATE TABLE IF NOT EXISTS `person` (
   `TITLE` varchar(10) DEFAULT NULL COMMENT 'Person''s title, e.g., Prof., Dr.',
   `FIRST_NAME` varchar(80) DEFAULT NULL COMMENT 'Person''s first names and/or initials',
   `NICKNAME` varchar(40) DEFAULT NULL COMMENT 'Nickname by which commonly known',
-  `PREFIX` varchar(16) DEFAULT NULL COMMENT 'Prefix to last name, e.g., van, de',
+  `PREFIX` varchar(20) DEFAULT NULL COMMENT 'Prefix to last name, e.g., van, de',
   `LAST_NAME` varchar(40) NOT NULL COMMENT 'Person''s last name,  without prefix or suffix',
   `SUFFIX` varchar(16) DEFAULT NULL COMMENT 'Suffix to last name, e.g. Jr., Sr.',
   `ALIAS` varchar(40) DEFAULT NULL COMMENT 'Alternative last name',
@@ -70,7 +79,7 @@ CREATE TABLE IF NOT EXISTS `person` (
   KEY `RATING` (`RATING`) USING BTREE,
   KEY `COUNTRY` (`COUNTRY`) USING BTREE,
   CONSTRAINT `RATING` CHECK (`RATING` >= 0 and `RATING` <= 5)
-) ENGINE=InnoDB AUTO_INCREMENT=2721 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='People who have publicly expressed contrarian/sceptical views about climate science orthodoxy, whether by signing declarations, open letters or publishing science articles.';
+) ENGINE=InnoDB AUTO_INCREMENT=2982 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='People who have publicly expressed contrarian/sceptical views about climate science orthodoxy, whether by signing declarations, open letters or publishing science articles.';
 
 -- Data exporting was unselected.
 
@@ -80,6 +89,7 @@ CREATE TABLE IF NOT EXISTS `publication` (
   `TITLE` varchar(200) NOT NULL COMMENT 'Publication title',
   `AUTHORS` varchar(100) NOT NULL COMMENT 'List of author names',
   `JOURNAL` varchar(100) DEFAULT NULL COMMENT 'Journal title',
+  `LOCATION` varchar(20) DEFAULT NULL COMMENT 'The location of the article',
   `PUBLICATION_TYPE_ID` varchar(6) DEFAULT NULL COMMENT 'The type of publication',
   `PUBLICATION_DATE` date DEFAULT NULL COMMENT 'Publication date',
   `PUBLICATION_YEAR` year(4) DEFAULT NULL COMMENT 'Publication year',
@@ -93,7 +103,7 @@ CREATE TABLE IF NOT EXISTS `publication` (
   UNIQUE KEY `DOI` (`DOI`),
   KEY `PUBLICATION_TYPE_ID` (`PUBLICATION_TYPE_ID`),
   CONSTRAINT `PUBLICATION_TYPE_ID` FOREIGN KEY (`PUBLICATION_TYPE_ID`) REFERENCES `publication_type` (`ID`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=258 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='References to published articles, whether or not peer-reviewed.';
+) ENGINE=InnoDB AUTO_INCREMENT=260 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='References to published articles, whether or not peer-reviewed.';
 
 -- Data exporting was unselected.
 
@@ -118,8 +128,8 @@ CREATE TABLE IF NOT EXISTS `quotation` (
   PRIMARY KEY (`ID`),
   KEY `AUTHOR` (`AUTHOR`),
   KEY `QUOTATION_PERSON` (`PERSON_ID`) USING BTREE,
-  CONSTRAINT `FK_QUOTATION_PERSON` FOREIGN KEY (`PERSON_ID`) REFERENCES `person` (`ID`) ON DELETE SET NULL ON UPDATE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Quotations by leading climate sceptics';
+  CONSTRAINT `FK_QUOTATION_PERSON` FOREIGN KEY (`PERSON_ID`) REFERENCES `person` (`ID`) ON DELETE SET NULL
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Quotations by leading climate sceptics';
 
 -- Data exporting was unselected.
 
@@ -128,10 +138,10 @@ CREATE TABLE IF NOT EXISTS `signatory` (
   `PERSON_ID` int(10) unsigned NOT NULL COMMENT 'The person ID',
   `DECLARATION_ID` int(10) unsigned NOT NULL COMMENT 'The declaration ID',
   PRIMARY KEY (`PERSON_ID`,`DECLARATION_ID`),
-  KEY `SIGNATORY_PERSON` (`PERSON_ID`) USING BTREE,
-  KEY `SIGNATORY_DECLARATION` (`DECLARATION_ID`) USING BTREE,
-  CONSTRAINT `FK_SIGNATORY_PERSON` FOREIGN KEY (`PERSON_ID`) REFERENCES `person` (`ID`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `FK_SIGNATORY_DECLARATION` FOREIGN KEY (`DECLARATION_ID`) REFERENCES `declaration` (`ID`) ON DELETE CASCADE ON UPDATE CASCADE
+  KEY `SIGNATORY_PERSON` (`PERSON_ID`),
+  KEY `SIGNATORY_DECLARATION` (`DECLARATION_ID`),
+  CONSTRAINT `FK_SIGNATORY_DECLARATION` FOREIGN KEY (`DECLARATION_ID`) REFERENCES `declaration` (`ID`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `FK_SIGNATORY_PERSON` FOREIGN KEY (`PERSON_ID`) REFERENCES `person` (`ID`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Joint table for signatories of declarations';
 
 -- Data exporting was unselected.

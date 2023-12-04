@@ -10,7 +10,12 @@
 	const DB_URL = 'DB_URL'; // Database URL.
 	const DB_USER = 'DB_USER'; // Database user.
 	const DB_PASSWORD = 'DB_PASSWORD'; // Database password.
-	const AUTHORIZATION = 'Authorization';
+	const HEADER_AUTHENTICATE = 'WWW-Authenticate';
+	const HEADER_AUTHORIZATION = 'Authorization';
+	const HEADER_ACCEPT = 'Accept';
+	const CONTENT_TYPE_JSON = 'application/json';
+	const CONTENT_TYPE_PDF = 'application/pdf';
+	const CONTENT_TYPE_CSV = 'text/csv';
 	const DELETE = 'DELETE';
 	const GET = 'GET';
 	const OPTIONS = 'OPTIONS';
@@ -27,6 +32,9 @@
 	const PARAM_QUOTATION_ID = 'quotationId';
 	const PARAM_TOPIC = 'topic';
 	// @formatter:off
+	const HEADER_DEFAULTS = [
+		HEADER_ACCEPT => CONTENT_TYPE_JSON
+	];
 	const FIND_DEFAULTS = [
 		PARAM_FILTER => null,
 		PARAM_START => 0,
@@ -68,6 +76,7 @@
 		'TITLE',
 		'AUTHORS',
 		'JOURNAL',
+		'LOCATION',
 		'PUBLICATION_TYPE_ID',
 		'PUBLICATION_DATE',
 		'PUBLICATION_YEAR',
@@ -97,8 +106,6 @@
 		'URL',
 	];
 	// @formatter:on
-	const MIME_TYPE_APPLICATION_JSON = 'application/json';
-	const MIME_TYPE_APPLICATION_XML = 'application/xml';
 
 	require './StatusCode.php';
 	use PH7\JustHttp\StatusCode;
@@ -109,50 +116,62 @@
 		public $records = [];
 	}
 
-	/** Used to return a ResultSet count. */
-	class Count {
-		public $COUNT = 0;
-	}
-
 	try {
 		readenv();
 
-		// When running as CLI, HTTP method and request URI are passed as command line arguments.
+		// When running as CLI, HTTP method, request URI and Accept header are passed as command line arguments.
 		if (isCli()) {
-			if ($argc != 3)
-				throw new Error("Invalid argument(s)");
+			if ($argc < 3 || $argc > 4)
+				throw new Error('Invalid argument(s)');
 
-			$_SERVER['SERVER_ADDR'] = '192.168.0.110';
-			$_SERVER['REMOTE_ADDR'] = '192.168.0.110';
-			$_SERVER['REQUEST_METHOD'] = strtoupper($argv[1]);
-			$_SERVER['REQUEST_URI'] = $argv[2];
+			$method = strtoupper($argv[1]);
+			$requestUri = $argv[2];
+			$contentType = $argc == 4 ? $argv[3] : 'application/json';
+		} else {
+			$headers = apache_request_headers();
+			setDefaults($headers, HEADER_DEFAULTS);
+			$method = $_SERVER['REQUEST_METHOD'];
+			$requestUri = $_SERVER['REQUEST_URI'];
+			$accept = strtolower(trim($headers[HEADER_ACCEPT]));
+			$contentType = strtok($accept, ', ');
 		}
-		preg_match('#^/climate-science-service/([^?]*)(?:\?(.*))?$#', $_SERVER['REQUEST_URI'], $matches);
+		preg_match('#^/climate-science-service/([^?]*)(?:\?(.*))?$#', $requestUri, $matches);
 		$matchCount = count($matches);
-		$method = $_SERVER['REQUEST_METHOD'];
 		$path = $matchCount > 0 ? explode('/', $matches[1]) : [];
-		if ($matchCount > 1 && isset($matches[2]))
+		if ($matchCount > 1 && isset($matches[2])) {
 			parse_str($matches[2], $params);
-		else
+			if (array_key_exists('contentType', $params))
+				$contentType = $params['contentType'];
+		} else {
 			$params = [];
+		}
 
-		// Handle request via a tree of dispath methods.
-		$result = dispatchRequest($method, $path, $params, $status);
-
+		// Set response headers, including CORS.
+		// NOTE: in Firefox about:config, set security.mixed_content.block_active_content=false
 		header('Title: Campaign Resources | Climate Science Service');
-		// REST service result is formatted as JSON.
-		header('Content-type: application/json');
-
-		// To support testing by Swagger Editor:
-		// In Firefox about:config, set security.mixed_content.block_active_content=false
+		header("Content-Type: $contentType");
 		header('Access-Control-Allow-Origin: *');
 		header('Access-Control-Allow-Headers: Authorization, Content-Type');
 
+		// Handle request via a tree of dispath methods.
+		$result = dispatchRequest($method, $contentType, $path, $params, $status);
+
 		http_response_code($status);
 
-		// If there is a result, emit it to the body
-		if (isset($result))
-			echo json_encode($result);
+		// If the response is set, encode it as necessary and emit to the body.
+		if (isset($result)) {
+			switch ($contentType) {
+				case CONTENT_TYPE_JSON:
+					echo json_encode($result);
+					break;
+				case CONTENT_TYPE_CSV:
+					echo $result;
+					break;
+				case CONTENT_TYPE_PDF:
+					// PDF content has already been emitted by the TCPDF library.
+					break;
+			}
+		}
 	} catch (Throwable $e) {
 		header('Access-Control-Allow-Origin: *');
 		http_response_code(StatusCode::INTERNAL_SERVER_ERROR);
@@ -162,12 +181,13 @@
 	/**
 	 * Dispatches a REST request.
 	 * @param $method The HTTP method being invoked.
+	 * @param $contentType The MIME content type requested.
 	 * @param $path The HTTP request URI path.
 	 * @param $params The HTTP request parameters (from the query string).
 	 * @param $status The HTTP status code to return, passed by reference.
 	 * @return ResultSet|object|null The result to return in the response body.
 	 */
-	function dispatchRequest($method, $path, $params, &$status) {
+	function dispatchRequest($method, $contentType, $path, $params, &$status) {
 		if (!checkArray($path, 1, 3)) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
@@ -177,16 +197,16 @@
 				$result = dispatchAuthRequest($method, $path, $params, $status);
 				break;
 			case 'person':
-				$result = dispatchPersonRequest($method, $path, $params, $status);
+				$result = dispatchPersonRequest($method, $contentType, $path, $params, $status);
 				break;
 			case 'publication':
-				$result = dispatchPublicationRequest($method, $path, $params, $status);
+				$result = dispatchPublicationRequest($method, $contentType, $path, $params, $status);
 				break;
 			case 'declaration':
-				$result = dispatchDeclarationRequest($method, $path, $params, $status);
+				$result = dispatchDeclarationRequest($method, $contentType, $path, $params, $status);
 				break;
 			case 'quotation':
-				$result = dispatchQuotationRequest($method, $path, $params, $status);
+				$result = dispatchQuotationRequest($method, $contentType, $path, $params, $status);
 				break;
 			case 'authorship':
 				$result = dispatchAuthorshipRequest($method, $path, $params, $status);
@@ -195,7 +215,7 @@
 				$result = dispatchSignatoryRequest($method, $path, $params, $status);
 				break;
 			case 'statistics':
-				$result = dispatchStatisticsRequest($method, $path, $params, $status);
+				$result = dispatchStatisticsRequest($method, $contentType, $path, $params, $status);
 				break;
 			default:
 				$status = StatusCode::BAD_REQUEST;
@@ -243,12 +263,13 @@
 	/**
 	 * Dispatches a Person-related REST request.
 	 * @param $method The HTTP method being invoked.
+	 * @param $contentType The MIME content type requested.
 	 * @param $path The HTTP request URI path.
 	 * @param $params The HTTP request parameters (from the query string).
 	 * @param $status The HTTP status code to return, passed by reference.
 	 * @return ResultSet|object|null The result to return in the response body.
 	 */
-	function dispatchPersonRequest($method, $path, $params, &$status) {
+	function dispatchPersonRequest($method, $contentType, $path, $params, &$status) {
 		if (!checkArray($path, 2, 2)) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
@@ -263,17 +284,17 @@
 				switch ($path[1]) {
 					case 'find':
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findPersons($params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findPersons($contentType, $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					case 'findByPublication':
 						setDefault($params, PARAM_PUBLICATION_ID, null);
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findPersonsByPublication($params[PARAM_PUBLICATION_ID], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findPersonsByPublication($contentType, $params[PARAM_PUBLICATION_ID], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					case 'findByDeclaration':
 						setDefault($params, PARAM_PUBLICATION_ID, null);
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findPersonsByDeclaration($params[PARAM_DECLARATION_ID], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findPersonsByDeclaration($contentType, $params[PARAM_DECLARATION_ID], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					default:
 						$result = getPersonById($path[1], $status);
@@ -292,12 +313,13 @@
 	/**
 	 * Dispatches a Publication-related REST request.
 	 * @param $method The HTTP method being invoked.
+	 * @param $contentType The MIME content type requested.
 	 * @param $path The HTTP request URI path.
 	 * @param $params The HTTP request parameters (from the query string).
 	 * @param $status The HTTP status code to return, passed by reference.
 	 * @return ResultSet|object|null The result to return in the response body.
 	 */
-	function dispatchPublicationRequest($method, $path, $params, &$status) {
+	function dispatchPublicationRequest($method, $contentType, $path, $params, &$status) {
 		if (!checkArray($path, 2, 2)) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
@@ -311,12 +333,12 @@
 				switch ($path[1]) {
 					case 'find':
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findPublications($params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findPublications($contentType, $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					case 'findByAuthor':
 						setDefaults($params, USER_DEFAULTS);
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findPublicationsByAuthor($params[PARAM_PERSON_ID], $params[PARAM_LAST_NAME], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findPublicationsByAuthor($contentType, $params[PARAM_PERSON_ID], $params[PARAM_LAST_NAME], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					default:
 						$result = getPublicationById($path[1], $status);
@@ -335,12 +357,13 @@
 	/**
 	 * Dispatches a Declaration-related REST request.
 	 * @param $method The HTTP method being invoked.
+	 * @param $contentType The MIME content type requested.
 	 * @param $path The HTTP request URI path.
 	 * @param $params The HTTP request parameters (from the query string).
 	 * @param $status The HTTP status code to return, passed by reference.
 	 * @return ResultSet|object|null The result to return in the response body.
 	 */
-	function dispatchDeclarationRequest($method, $path, $params, &$status) {
+	function dispatchDeclarationRequest($method, $contentType, $path, $params, &$status) {
 		if (!checkArray($path, 2, 2)) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
@@ -354,12 +377,12 @@
 				switch ($path[1]) {
 					case 'find':
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findDeclarations($params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findDeclarations($contentType, $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					case 'findBySignatory':
 						setDefaults($params, USER_DEFAULTS);
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findDeclarationsBySignatory($params[PARAM_PERSON_ID], $params[PARAM_LAST_NAME], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findDeclarationsBySignatory($contentType, $params[PARAM_PERSON_ID], $params[PARAM_LAST_NAME], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					default :
 						$result = getDeclarationById($path[1], $status);
@@ -378,12 +401,13 @@
 	/**
 	 * Dispatches a Quotation-related REST request.
 	 * @param $method The HTTP method being invoked.
+	 * @param $contentType The MIME content type requested.
 	 * @param $path The HTTP request URI path.
 	 * @param $params The HTTP request parameters (from the query string).
 	 * @param $status The HTTP status code to return, passed by reference.
 	 * @return ResultSet|object|null The result to return in the response body.
 	 */
-	function dispatchQuotationRequest($method, $path, $params, &$status) {
+	function dispatchQuotationRequest($method, $contentType, $path, $params, &$status) {
 		if (!checkArray($path, 2, 2)) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
@@ -398,12 +422,12 @@
 				switch ($path[1]) {
 					case 'find':
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findQuotations($params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findQuotations($contentType, $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					case 'findByAuthor':
 						setDefaults($params, USER_DEFAULTS);
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findQuotationsByAuthor($params[PARAM_PERSON_ID], $params[PARAM_LAST_NAME], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findQuotationsByAuthor($contentType, $params[PARAM_PERSON_ID], $params[PARAM_LAST_NAME], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					default :
 						$result = getQuotationById($path[1], $status);
@@ -500,12 +524,13 @@
 	/**
 	 * Dispatches a Statistics-related REST request.
 	 * @param $method The HTTP method being invoked.
+	 * @param $contentType The MIME content type requested.
 	 * @param $path The HTTP request URI path.
 	 * @param $params The HTTP request parameters (from the query string).
 	 * @param $status The HTTP status code to return, passed by reference.
 	 * @return ResultSet|object|null The result to return in the response body.
 	 */
-   function dispatchStatisticsRequest($method, $path, $params, &$status) {
+   function dispatchStatisticsRequest($method, $contentType, $path, $params, &$status) {
 		if (!checkArray($path, 2, 2)) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
@@ -518,7 +543,7 @@
 				switch ($path[1]) {
 					# GET /statistics/find?topic=climate&start=0&count=0
 					case 'find':
-						$result = findStatistics($params[PARAM_TOPIC], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findStatistics($contentType, $params[PARAM_TOPIC], $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					default:
 						$status = StatusCode::BAD_REQUEST;
@@ -560,13 +585,14 @@
 
 	/**
 	 * Fetches a paginated sub-list of Persons.
+	 * @param $contentType The MIME content type requested.
 	 * @param $filter Search string.
 	 * @param $start The index of the first Person to return.
 	 * @param $count The maximum number of Persons to return.
 	 * @param $status The HTTP status code to return, passed by reference.
-	 * @return ResultSet A ResultSet containing the requested Persons.
+	 * @return ResultSet|string|null A ResultSet containing the requested Persons.
 	 */
-	function findPersons($filter, $start, $count, &$status) {
+	function findPersons($contentType, $filter, $start, $count, &$status) {
 		if ($filter) {
 			$fields = implode(', ', PERSON_FIELDS);
 			$predicate = "WHERE LOWER(CONVERT(CONCAT_WS('|', $fields) USING UTF8)) LIKE ?";
@@ -579,18 +605,32 @@
 			"SELECT COUNT(*) FROM person $predicate;",
 			"SELECT * FROM person $predicate ORDER BY LAST_NAME, FIRST_NAME;"
 		];
-		return executeQuery($sql, $params, true, $start, $count, $status);
+
+		$result = executeQuery($sql, $params, true, $start, $count, $status);
+
+		switch ($contentType) {
+			case CONTENT_TYPE_JSON:
+				return $result;
+			case CONTENT_TYPE_PDF:
+				return exportPersonsToPdf(null, null, $filter, $start, $result);
+			case CONTENT_TYPE_CSV:
+				return exportPersonsToCsv($result);
+			default:
+				$status = StatusCode::BAD_REQUEST;
+				return null;
+		}
 	}
 
 	/**
 	 * Fetches a paginated sub-list of Persons who are authors of a specified Publication.
+	 * @param $contentType The MIME content type requested.
 	 * @param $publicationId The ID of the Publication whose authors are required.
 	 * @param $filter Search string.
 	 * @param $start The index of the first Person to retrieve.
 	 * @param $count The maximum number of Persons to retrieve.
-	 * @return ResultSet A ResultSet containing the requested Persons.
+	 * @return ResultSet|string|null A ResultSet containing the requested Persons.
 	 */
-	function findPersonsByPublication($publicationId, $filter, $start, $count, &$status) {
+	function findPersonsByPublication($contentType, $publicationId, $filter, $start, $count, &$status) {
 		$params = [$publicationId];
 		if ($filter) {
 			$fields = implode(', ', PERSON_FIELDS);
@@ -603,7 +643,20 @@
 			"SELECT COUNT(*) FROM person JOIN authorship ON authorship.PERSON_ID = person.ID WHERE authorship.PUBLICATION_ID=? $predicate;",
 			"SELECT * FROM person JOIN authorship ON authorship.PERSON_ID = person.ID WHERE authorship.PUBLICATION_ID=? $predicate ORDER BY person.LAST_NAME, person.FIRST_NAME;"
 		];
-		return executeQuery($sql, $params, true, $start, $count, $status);
+
+		$result = executeQuery($sql, $params, true, $start, $count, $status);
+
+		switch ($contentType) {
+			case CONTENT_TYPE_JSON:
+				return $result;
+			case CONTENT_TYPE_PDF:
+				return exportPersonsToPdf($publicationId, null, $filter, $start, $result);
+			case CONTENT_TYPE_CSV:
+				return exportPersonsToCsv($result);
+			default:
+				$status = StatusCode::BAD_REQUEST;
+				return null;
+		}
 	}
 
 	/**
@@ -612,9 +665,9 @@
 	 * @param $filter Search string.
 	 * @param $start The index of the first Person to retrieve.
 	 * @param $count The maximum number of Persons to retrieve.
-	 * @return ResultSet A ResultSet containing the requested Persons.
+	 * @return ResultSet|string|null A ResultSet containing the requested Persons.
 	 */
-	function findPersonsByDeclaration($declarationId, $filter, $start, $count, &$status) {
+	function findPersonsByDeclaration($contentType, $declarationId, $filter, $start, $count, &$status) {
 		$params = [$declarationId];
 		if ($filter) {
 			$fields = implode(', ', PERSON_FIELDS);
@@ -627,7 +680,20 @@
 			"SELECT COUNT(*) FROM person JOIN signatory ON signatory.PERSON_ID = person.ID WHERE signatory.DECLARATION_ID=? $predicate;",
 			"SELECT * FROM person JOIN signatory ON signatory.PERSON_ID = person.ID WHERE signatory.DECLARATION_ID=? $predicate ORDER BY person.LAST_NAME, person.FIRST_NAME;"
 		];
-		return executeQuery($sql, $params, true, $start, $count, $status);
+
+		$result = executeQuery($sql, $params, true, $start, $count, $status);
+
+		switch ($contentType) {
+			case CONTENT_TYPE_JSON:
+				return $result;
+			case CONTENT_TYPE_PDF:
+				return exportPersonsToPdf(null, $declarationId, $filter, $start, $result);
+			case CONTENT_TYPE_CSV:
+				return exportPersonsToCsv($result);
+			default:
+				$status = StatusCode::BAD_REQUEST;
+				return null;
+		}
 	}
 
 	/**
@@ -645,9 +711,9 @@
 	 * @param $filter Search string.
 	 * @param $start The index of the first Publication to return.
 	 * @param $count The maximum number of Publications to return.
-	 * @return ResultSet A ResultSet containing the requested Publications.
+	 * @return ResultSet|string|null A ResultSet containing the requested Publications.
 	 */
-	function findPublications($filter, $start, $count, &$status) {
+	function findPublications($contentType, $filter, $start, $count, &$status) {
 		if ($filter) {
 			$fields = implode(', ', PUBLICATION_FIELDS);
 			$predicate = "WHERE LOWER(CONVERT(CONCAT_WS('|', $fields) USING UTF8)) LIKE ?";
@@ -660,7 +726,20 @@
 			"SELECT COUNT(*) FROM publication $predicate;",
 			"SELECT * FROM publication $predicate ORDER BY PUBLICATION_YEAR DESC, PUBLICATION_DATE DESC;"
 		];
-		return executeQuery($sql, $params, true, $start, $count, $status);
+
+		$result = executeQuery($sql, $params, true, $start, $count, $status);
+		
+		switch ($contentType) {
+			case CONTENT_TYPE_JSON:
+				return $result;
+			case CONTENT_TYPE_PDF:
+				return exportPublicationsToPdf(null, $filter, $start, $result);
+			case CONTENT_TYPE_CSV:
+				return exportPublicationsToCsv($result);
+			default:
+				$status = StatusCode::BAD_REQUEST;
+				return null;
+		}
 	}
 
 	/**
@@ -670,9 +749,9 @@
 	 * @param $filter Search string.
 	 * @param $start The index of the first Publication to retrieve.
 	 * @param $count The maximum number of Publications to retrieve.
-	 * @return ResultSet|null A ResultSet containing the requested Publications.
+	 * @return ResultSet|string|null A ResultSet containing the requested Publications.
 	 */
-	function findPublicationsByAuthor($personId, $lastName, $filter, $start, $count, &$status) {
+	function findPublicationsByAuthor($contentType, $personId, $lastName, $filter, $start, $count, &$status) {
 		if (!isset($personId)) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
@@ -739,7 +818,19 @@
 		];
 		# @formatter:on
 		
-		return executeQuery($sql, $params, true, $start, $count, $status);
+		$result = executeQuery($sql, $params, true, $start, $count, $status);
+
+		switch ($contentType) {
+			case CONTENT_TYPE_JSON:
+				return $result;
+			case CONTENT_TYPE_PDF:
+				return exportPublicationsToPdf($personId, $filter, $start, $result);
+			case CONTENT_TYPE_CSV:
+				return exportPublicationsToCsv($result);
+			default:
+				$status = StatusCode::BAD_REQUEST;
+				return null;
+		}
 	}
 
 	/**
@@ -757,9 +848,9 @@
 	 * @param $filter Search string.
 	 * @param $start The index of the first Declaration to return.
 	 * @param $count The maximum number of Declarations to return.
-	 * @return ResultSet A ResultSet containing the requested Declarations.
+	 * @return ResultSet|string|null A ResultSet containing the requested Declarations.
 	 */
-	function findDeclarations($filter, $start, $count, &$status) {
+	function findDeclarations($contentType, $filter, $start, $count, &$status) {
 		if ($filter) {
 			$fields = implode(', ', DECLARATION_FIELDS);
 			$predicate = "WHERE LOWER(CONVERT(CONCAT_WS('|', $fields) USING UTF8)) LIKE ?";
@@ -772,7 +863,20 @@
 			"SELECT COUNT(*) FROM declaration $predicate;",
 			"SELECT * FROM declaration $predicate ORDER BY DATE DESC;"
 		];
-		return executeQuery($sql, $params, true, $start, $count, $status);
+
+		$result = executeQuery($sql, $params, true, $start, $count, $status);
+		
+		switch ($contentType) {
+			case CONTENT_TYPE_JSON:
+				return $result;
+			case CONTENT_TYPE_PDF:
+				return exportDeclarationsToPdf(null, $filter, $start, $result);
+			case CONTENT_TYPE_CSV:
+				return exportDeclarationsToCsv($result);
+			default:
+				$status = StatusCode::BAD_REQUEST;
+				return null;
+		}
 	}
 
 	/**
@@ -782,9 +886,9 @@
 	 * @param $filter Search string.
 	 * @param $start The index of the first Declaration to retrieve.
 	 * @param $count The maximum number of Declarations to retrieve.
-	 * @return ResultSet|null A ResultSet containing the requested Declarations.
+	 * @return ResultSet|string|null A ResultSet containing the requested Declarations.
 	 */
-	function findDeclarationsBySignatory($personId, $lastName, $filter, $start, $count, &$status) {
+	function findDeclarationsBySignatory($contentType, $personId, $lastName, $filter, $start, $count, &$status) {
 		if (!isset($personId)) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
@@ -851,7 +955,19 @@
 		];
 		# @formatter:on
 
-		return executeQuery($sql, $params, true, $start, $count, $status);
+		$result = executeQuery($sql, $params, true, $start, $count, $status);
+
+		switch ($contentType) {
+			case CONTENT_TYPE_JSON:
+				return $result;
+			case CONTENT_TYPE_PDF:
+				return exportDeclarationsToPdf($personId, $filter, $start, $result);
+			case CONTENT_TYPE_CSV:
+				return exportDeclarationsToCsv($result);
+			default:
+				$status = StatusCode::BAD_REQUEST;
+				return null;
+		}
 	}
 
 	/**
@@ -881,9 +997,9 @@
 	 * @param $filter Search string.
 	 * @param $start The index of the first Quotation to return.
 	 * @param $count The maximum number of Quotations to return.
-	 * @return ResultSet A ResultSet containing the requested Quotations.
+	 * @return ResultSet|string|null A ResultSet containing the requested Quotations.
 	 */
-	function findQuotations($filter, $start, $count, &$status) {
+	function findQuotations($contentType, $filter, $start, $count, &$status) {
 		if ($filter) {
 			$fields = implode(', ', QUOTATION_FIELDS);
 			$predicate = "WHERE LOWER(CONVERT(CONCAT_WS('|', $fields) USING UTF8)) LIKE ?";
@@ -896,7 +1012,20 @@
 				"SELECT COUNT(*) FROM quotation $predicate;",
 				"SELECT * FROM quotation $predicate ORDER BY DATE DESC;"
 		];
-		return executeQuery($sql, $params, true, $start, $count, $status);
+
+		$result = executeQuery($sql, $params, true, $start, $count, $status);
+
+		switch ($contentType) {
+			case CONTENT_TYPE_JSON:
+				return $result;
+			case CONTENT_TYPE_PDF:
+				return exportQuotationsToPdf(null, $filter, $start, $result);
+			case CONTENT_TYPE_CSV:
+				return exportQuotationsToCsv($result);
+			default:
+				$status = StatusCode::BAD_REQUEST;
+				return null;
+		}
 	}
 
 	/**
@@ -905,9 +1034,9 @@
 	 * @param $filter Search string.
 	 * @param $start The index of the first Quotation to retrieve.
 	 * @param $count The maximum number of Quotations to retrieve.
-	 * @return ResultSet|null A ResultSet containing the requested Quotations.
+	 * @return ResultSet|string|null A ResultSet containing the requested Quotations.
 	 */
-	function findQuotationsByAuthor($personId, $lastName, $filter, $start, $count, &$status) {
+	function findQuotationsByAuthor($contentType, $personId, $lastName, $filter, $start, $count, &$status) {
 		if (!isset($personId)) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
@@ -964,7 +1093,19 @@
 		];
 		# @formatter:on
 
-		return executeQuery($sql, $params, true, $start, $count, $status);
+		$result = executeQuery($sql, $params, true, $start, $count, $status);
+
+		switch ($contentType) {
+			case CONTENT_TYPE_JSON:
+				return $result;
+			case CONTENT_TYPE_PDF:
+				return exportQuotationsToPdf($personId, $filter, $start, $result);
+			case CONTENT_TYPE_CSV:
+				return exportQuotationsToCsv($result);
+			default:
+				$status = StatusCode::BAD_REQUEST;
+				return null;
+		}
 	}
 
 	/**
@@ -1056,7 +1197,7 @@
 	 * @param $count The maximum number of Statistics to retrieve.
 	 * @return ResultSet|null A ResultSet containing the requested Statistics.
 	 */
-	function findStatistics($topic, $start, $count, &$status) {
+	function findStatistics($contentType, $topic, $start, $count, &$status) {
 		if (!$topic) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
@@ -1064,7 +1205,7 @@
 
 		switch ($topic) {
 			case 'climate':
-				$result = findClimateStatistics($start, $count, $status);
+				$result = findClimateStatistics($contentType, $start, $count, $status);
 				break;
 			default:
 				$status = StatusCode::BAD_REQUEST;
@@ -1076,9 +1217,9 @@
 	 * Returns database statistics about the climate topic.
 	 * @param $start The index of the first Statistic to retrieve.
 	 * @param $count The maximum number of Statistics to retrieve.
-	 * @return ResultSet|null A ResultSet containing the requested Statistics.
+	 * @return ResultSet|string|null A ResultSet containing the requested Statistics.
 	 */
-	function findClimateStatistics($start, $count, &$status) {
+	function findClimateStatistics($contentType, $start, $count, &$status) {
 		$countSql = "SELECT 14 AS COUNT";
 		$selectSql =
 			"SELECT 'Persons' AS `CATEGORY`, COUNT(*) AS `COUNT`, 'Total number of people in the database' AS DESCRIPTION FROM person UNION "
@@ -1096,7 +1237,20 @@
 		  . "SELECT 'Published', COUNT(*), 'Number of scientists who have published peer-reviewed science' FROM person WHERE PUBLISHED UNION "
 		  . "SELECT 'Checked', COUNT(*), 'Number of scientists whose credentials have been checked' FROM person WHERE CHECKED;";
 		$sql = [$countSql, $selectSql];
-		return executeQuery($sql, null, true, $start, $count, $status);
+
+		$result =  executeQuery($sql, null, true, $start, $count, $status);
+
+		switch ($contentType) {
+			case CONTENT_TYPE_JSON:
+				return $result;
+			case CONTENT_TYPE_PDF:
+				return exportStatisticsToPdf($result);
+			case CONTENT_TYPE_CSV:
+				return exportStatisticsToCsv($result);
+			default:
+				$status = StatusCode::BAD_REQUEST;
+				return null;
+		}
 	}
 
 	/**
@@ -1184,11 +1338,11 @@
 	 * @param $start The index of the first result row to return.
 	 * @param $start The maximum number of result rows to return.
 	 * @param $status The HTTP status code to return, passed by reference.
-	 * @return object If $multi is false, returns the requested row as an object. If $multi is true, returns a
+	 * @return mixed If $multi is false, returns the requested row as an object. If $multi is true, returns a
 	 * ResultSet object containing the total count and the requested rows as an array of objects. Otherwise, returns
 	 * a single row from the database (if found).
 	 */
-	function executeQuery(array|string $sql, $params, bool $multi, int $start, int $count, &$status) : object {
+	function executeQuery(array|string $sql, $params, bool $multi, int $start, int $count, &$status) : mixed {
 		$result = $multi ? new ResultSet() : null;
 
 		// Validate & split $sql parameter.
@@ -1314,7 +1468,6 @@
 			"fnm" => $user->FIRST_NAME,
 			"lnm" => $user->LAST_NAME,
 			"eml" => $user->EMAIL,
-			// "iss" => "campaign-resources.org",
 			"iat" => $issuedAt,
 			"exp" => $issuedAt + $jwtTtl,
 		];
@@ -1351,6 +1504,7 @@
 				return $base64UrlSignature === $base64UrlSignatureComp;
 			}
 		}
+		header('WWW-Authenticate: Bearer');
 		$status = StatusCode::UNAUTHORIZED;
 		return false;
 	}
@@ -1367,15 +1521,15 @@
 			case POST:
 			case PATCH:
 			case DELETE:
-				$headers = isCli() ? [AUTHORIZATION => null] : apache_request_headers();
-				if (array_key_exists(AUTHORIZATION, $headers)) {
-					$authString = trim($headers[AUTHORIZATION]);
+				$headers = isCli() ? [HEADER_AUTHORIZATION => null] : apache_request_headers();
+				if (array_key_exists(HEADER_AUTHORIZATION, $headers)) {
+					$authString = trim($headers[HEADER_AUTHORIZATION]);
 					if (isset($authString) && $authString && stripos($authString, 'Bearer ') == 0) {
 						$jwt = trim(substr($authString, 7));
 						return validateJwt($jwt, $status);
 					}
 				}
-				header('WWW-Authenticate: Bearer');
+				header(HEADER_AUTHENTICATE . ': Bearer');
 				$status = StatusCode::UNAUTHORIZED;
 				return false;
 			default:
@@ -1424,5 +1578,634 @@
 	function base64UrlDecode($text) : string {
 		return base64_decode(base64UrlUnescape($text));
 	}
+
+	/**
+	 * Creates a new PDF object.
+	 * @param string $title The title to insert in the PDF properties.
+	 * @param string $subject The subject to insert in the PDF properties.
+	 * @param string $headerTitle The title to place in the PDF header area.
+	 * @return MyPDF
+	 */
+	function createPdf($title, $subject, $headerTitle) {
+		// Override a couple of defaults to use Campaign Resources branding.
+		define('K_PATH_IMAGES', dirname(__FILE__) . '/images/');
+		define('PDF_HEADER_LOGO', 'campaign-resources-logo.jpg');
+		define ('PDF_HEADER_LOGO_WIDTH', 60);
+
+		// Include the main TCPDF library.
+		require_once 'vendor/tecnickcom/tcpdf/tcpdf.php';
+
+		// Extend the TCPDF class to define custom Footer layout.
+		class MyPDF extends TCPDF {
+			protected $footer_text_left = null;
+			protected $footer_text_centre = null;
+			protected $footer_url_centre = null;
+			
+			function __construct() {
+				parent::__construct(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+			}
+
+			public function setFooterData($tc=array(0,0,0), $lc=array(0,0,0), $ftl=null, $ftc=null, $ftu=null) {
+				parent::setFooterData($tc, $lc);
+				$this->footer_text_left = $ftl;
+				$this->footer_text_centre = $ftc;
+				$this->footer_url_centre = $ftu;
+			}
+			
+			public function Footer() {
+				$cur_y = $this->y;
+				$this->setTextColorArray($this->footer_text_color);
+				// Set style for cell border.
+				$line_width = (0.85 / $this->k);
+				$this->setLineStyle(array('width' => $line_width, 'cap' => 'butt', 'join' => 'miter', 'dash' => 0, 'color' => $this->footer_line_color));
+				$w_page = isset($this->l['w_page']) ? $this->l['w_page'].' ' : '';
+				if (empty($this->pagegroups)) {
+					$pagenumtxt = $w_page.$this->getAliasNumPage().' / '.$this->getAliasNbPages();
+				} else {
+					$pagenumtxt = $w_page.$this->getPageNumGroupAlias().' / '.$this->getPageGroupAlias();
+				}
+				$this->setY($cur_y);
+				// Print footer top border.
+				$this->setX($this->original_lMargin);
+				$this->Cell(0, 0, '', 'T', 1, 'J');
+				// Print footer text in three cells in a 5 x 1 grid in left, centre and right positions.
+				$cellWidth = ($this->getPageWidth() - $this->footer_margin * 2) / 5;
+				$this->Cell($cellWidth, 0, $this->footer_text_left, 0, 0, 'L');
+				$this->Cell($cellWidth * 3, 0, $this->footer_text_centre, 0, 0, 'C', false, $this->footer_url_centre);
+				$this->Cell($cellWidth, 0, /* $this->getAliasRightShift(). */$pagenumtxt, 0, 0, 'R');
+			}
+		}
+
+		$footerTimestamp = date('d M Y H:i:s');
+		$footerTitle = 'Campaign Resources—Climate Science App';
+		$footerTitleUrl = 'https://campaign-resources.org/climate-science-client';
+
+		$pdf = new MyPDF;
+
+		$pdf->setCreator(PDF_CREATOR);
+		$pdf->setAuthor('Campaign Resources');
+		$pdf->setTitle($title);
+		$pdf->setSubject($subject);
+		$pdf->setKeywords('climate science');
+		$pdf->setHeaderData(PDF_HEADER_LOGO, PDF_HEADER_LOGO_WIDTH, $headerTitle, 'Compiled by campaign-resources.org', array(0,64,255), array(0,64,128));
+		$pdf->setHeaderFont(Array(PDF_FONT_NAME_MAIN, '', PDF_FONT_SIZE_MAIN));
+		$pdf->setFooterData(array(0,64,0), array(0,64,128), $footerTimestamp, $footerTitle, $footerTitleUrl);
+		$pdf->setFooterFont(Array(PDF_FONT_NAME_DATA, '', PDF_FONT_SIZE_DATA));
+
+		$pdf->setDefaultMonospacedFont(PDF_FONT_MONOSPACED);
+		$pdf->setMargins(PDF_MARGIN_LEFT, PDF_MARGIN_TOP, PDF_MARGIN_RIGHT);
+		$pdf->setHeaderMargin(PDF_MARGIN_HEADER);
+		$pdf->setFooterMargin(PDF_MARGIN_FOOTER);
+		$pdf->setAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
+		$pdf->setImageScale(PDF_IMAGE_SCALE_RATIO);
+		$pdf->setFont('dejavusans', '', 10);
+
+		$pdf->AddPage();
+
+		return $pdf;
+	}
+
+	/**
+	 * Formats a specified number of names in CSE citation format.
+	 * @param string $rawNames A string containing multiple names, one per line.
+	 * @param int $maxCount The maximum number of names to include.
+	 * @return string The formatted name string.
+	 */
+	function formatNames(string $rawNames, int $maxCount = 10) {
+		$result = '';
+		$names = explode("\r\n", $rawNames);
+		$nameCount = count($names);
+		for ($i = 0, $n = min($maxCount, $nameCount); $i < $n; $i++) {
+			$name = $names[$i];
+			if ($i > 0)
+				$result .= ', ';
+
+			// Need to differentiate names with last name first vs. those with last name last.
+			$commaPos = strpos($name, ',');
+			if ($commaPos !== false) {
+				$lastName = trim(substr($name, 0, $commaPos));
+				$firstNames = trim(substr($name, $commaPos + 1));
+			} else if (preg_match("/(?:[dD]el? |van (?:[dD]e[lnr]? )?|[vV]on |[zZ]u |St. |of )?[^ \.\-]+(?: Jr\.?| Sr\.?| I{2,3})?(?=$)/", $name, $matches, PREG_OFFSET_CAPTURE)) {
+				// The regex matches just the last name, including any prefix and/or suffix.
+				$lastName = $matches[0][0];
+				$firstNames = substr($name, 0, $matches[0][1]);
+			}
+
+			$result .= $lastName;
+			$tok = strtok($firstNames, ' ');
+			if ($tok !== false) {
+				$result .= ' ';
+				while ($tok !== false) {
+					$result .= $tok[0];
+					$tok = strtok(' ');
+				}
+			}
+		}
+		// CSE citation standard says to list up to 10 names, followed by 'et al.' if there are more.
+		if ($nameCount > $maxCount)
+			$result .= ' et al';
+		return $result;
+	}
+
+	/**
+	 * Truncates a string to a specified maximum length.
+	 * @param string $string The string to truncate.
+	 * @param int $length The maximum string length.
+	 * @return string The string, truncated if necessary.
+	 */
+	function truncate(string $string, int $length) : string {
+		if (strlen($string) > $length) {
+			return substr($string, 0, $length - 3) . '...';
+		}
+		return $string;
+	}
+
+	/**
+	 * Returns the official ISO abbreviation for the specified journal, if known.
+	 * @param string $journal The full journal title.
+	 */
+	function abbreviateJournal($journal) {
+		static $abbreviationCache = null;
+		if (!$abbreviationCache) {
+			$abbreviationCache = [];
+			$sql = ['SELECT COUNT(*) FROM abbreviation;', 'SELECT TITLE, ABBREVIATION FROM abbreviation;'];
+			$abbreviations = executeQuery($sql, null, true, 0, 0, $status);
+			foreach ($abbreviations->records as $record)
+				$abbreviationCache[$record->TITLE] = $record->ABBREVIATION;
+		}
+
+		return array_key_exists($journal, $abbreviationCache) ? $abbreviationCache[$journal] : $journal;
+	}
+
+	/**
+	 * Looks up a declaration by ID and returns the title and date.
+	 * @param string $declarationId The database identifier for the declaration.
+	 * @return string The formatted declaration title and date.
+	 */
+	function lookupDeclaration($declarationId) : string {
+		$declaration = executeQuery('SELECT TITLE, DATE FROM declaration WHERE ID=?;', [$declarationId], false, 0, 0, $status);
+		$title = $declaration->TITLE;
+		if ($declaration->DATE)
+			$title .= " ($declaration->DATE)";
+		return $title;
+	}
+
+	/**
+	 * Looks up a  person by ID and returns the formatted name.
+	 * @param int $personId The database identifier for the person.
+	 * @return string The formatted person name.
+	 */
+	function lookupPerson(int $personId) : string {
+		$name = '';
+		$person = executeQuery('SELECT TITLE, FIRST_NAME, PREFIX, LAST_NAME, SUFFIX FROM person WHERE ID=?;', [$personId], false, 0, 0, $status);
+		if ($person) {
+			if ($person->TITLE)
+				$name .= "$person->TITLE ";
+			if ($person->FIRST_NAME)
+				$name .= "$person->FIRST_NAME ";
+			if ($person->PREFIX)
+				$name .= "$person->PREFIX ";
+			if ($person->LAST_NAME)
+				$name .= "$person->LAST_NAME";
+			if ($person->SUFFIX)
+				$name .= " $person-> SUFFIX";
+		}
+		return $name;
+	}
+
+	/**
+	 * Looks up a publication by ID and returns the formatted title.
+	 *
+	 * @param int $publicationId The database identifier for the publication.
+	 * @return string The formatted publication name.
+	 */
+	function lookupPublication(int $publicationId): string {
+		$description = '';
+		$publication = executeQuery('SELECT TITLE, JOURNAL, LOCATION, PUBLICATION_DATE, PUBLICATION_YEAR, DOI FROM publication WHERE ID=?;', [$publicationId], false, 0, 0, $status);
+		if ($publication) {
+			if ($publication->TITLE) {
+				$title = truncate($publication->TITLE, 30);
+				$description .= $title;
+			}
+			if ($publication->JOURNAL) {
+				$journal = abbreviateJournal($publication->JOURNAL);
+				$description .= " $journal.";
+			}
+			if ($publication->LOCATION) {
+				$description .= " $publication->LOCATION.";
+			}
+			if ($publication->PUBLICATION_YEAR) {
+				$description .= " {$publication->PUBLICATION_YEAR}.";
+			} else if ($publication->PUBLICATION_DATE) {
+				$year = substr($publication->PUBLICATION_DATE, 0, 4);
+				$description .= " $year.";
+			}
+			if ($publication->DOI) {
+				$description .= " doi:$publication->DOI";
+			}
+		}
+		return $description;
+	}
+
+	/**
+	 * Exports a list of declarations to PDF.
+	 *
+	 * @param int|null $personId The ID of the associated signatory.
+	 * @param $filter|null Search string.
+	 * @param $start The index of the first declaration to return.
+	 * @param ResultSet $result The results to export.
+	 * @return null
+	 */
+	function exportDeclarationsToPdf($personId, $filter, $start, $result) {
+		header('Content-Disposition: attachment; filename="declarations.pdf"');
+
+		$pdf = createPdf('Declaration List', 'Climate Science', 'Declarations');
 	
+		if ($personId) {
+			$person = lookupPerson($personId);
+			$html = "Declarations signed by $person";
+		} else {
+			$html = 'Declarations';
+		}
+		if ($filter) {
+			$html .= ", filtered on '$filter'";
+		}
+		$html .= "<br>\n";
+	
+		$count = count($result->records);
+		$finish = $start++ + $count; // (numbered lists start at 1)
+		$html .= "Records {$start}–{$finish} of $result->count:\n";
+
+		$html .= "<ol start=\"$start\">\n";
+		for ($i = 0; $i < $count; $i++) {
+			$declaration = $result->records[$i];
+			$html .= '  <li>';
+			if (property_exists($declaration, 'LINKED') && !$declaration->LINKED)
+				$html .= '[unverified] ';
+			if ($declaration->TYPE)
+				$html .= "{$declaration->TYPE}: ";
+			$html .= "$declaration->TITLE.";
+			if ($declaration->DATE)
+				$html .= " $declaration->DATE";
+			if ($declaration->COUNTRY)
+				$html .= " ($declaration->COUNTRY).";
+			if ($declaration->URL)
+				$html .= " <a href=\"$declaration->URL\">$declaration->URL</a>";
+			if ($declaration->SIGNATORY_COUNT)
+				$html .= " ($declaration->SIGNATORY_COUNT signatories)";
+			$html .= "</li>\n";
+		}
+		$html .= '</ol>';
+	
+		$pdf->writeHTML($html, true, false, true, false, '');
+	
+		$pdf->lastPage();
+	
+		$pdf->Output('declarations.pdf', 'D');
+	
+		return null;
+	}
+
+	/**
+	 * Exports a list of declarations to CSV.
+	 * @param ResultSet $result The results to export.
+	 * @return string Results formatted as tab-separated CSV.
+	 */
+	function exportDeclarationsToCsv($result) : string {
+		header('Content-Disposition: attachment; filename="declarations.csv"');
+
+		// CSV needs to be tab-separated, as fields may contain commas.
+		$csv = "ID\tTYPE\tTITLE\tDATE\tCOUNTRY\tURL\tSIGNATORY_COUNT\tSIGNATORIES\n";
+		foreach ($result->records as $record) {
+			$signatories = str_replace("\r\n", '|', $record->SIGNATORIES);
+			$csv .= "$record->ID\t$record->TITLE\t$record->DATE\t$record->COUNTRY\t$record->URL\t$record->SIGNATORY_COUNT\t$signatories\n";
+		}
+		return $csv;
+	}
+	
+	/**
+	 * Exports a list of persons to PDF. 
+	 * @param int|null $publicationId The ID of the associated publication.
+	 * @param int|null $declarationId The ID of the associated declaration.
+	 * @param $filter|null Search string.
+	 * @param $start The index of the first Person to return.
+	 * @param ResultSet $result The results to export.
+	 * @return null
+	 */
+	function exportPersonsToPdf($publicationId, $declarationId, $filter, $start, $result) {
+		header('Content-Disposition: attachment; filename="persons.pdf"');
+
+		$pdf = createPdf('Person List', 'Climate Science', 'Scientists');
+
+		if ($publicationId) {
+			$publication = lookupPublication($publicationId);
+			$html = "Authors of publication: $publication";
+		} else if ($declarationId) {
+			$declaration = lookupDeclaration($declarationId);
+			$html = "Signatories of declaration: $declaration";
+		} else {
+			$html = 'Persons';
+		}
+		if ($filter) {
+			$html .= ", filtered on '$filter'";
+		}
+		$html .= "<br>\n";
+		
+		$count = count($result->records);
+		$finish = $start++ + $count; // (numbered lists start at 1)
+		$html .= "Records {$start}–{$finish} of $result->count:\n";
+		
+		$html .= "<ol start=\"$start\">\n";
+		for ($i = 0; $i < $count; $i++) {
+			$person = $result->records[$i];
+			$html .= '  <li><b>';
+			if ($person->PREFIX)
+				$html .= "{$person->PREFIX}&nbsp;";
+			$html .= $person->LAST_NAME;
+			if ($person->SUFFIX)
+				$html .= "&nbsp;{$person->SUFFIX}";
+			if ($person->ALIAS)
+				$html .= "&nbsp;({$person->ALIAS})";
+			$html .= ',';
+			if ($person->TITLE)
+				$html .= "&nbsp;{$person->TITLE}";
+			if ($person->FIRST_NAME)
+				$html .= "&nbsp;{$person->FIRST_NAME}";
+			if ($person->NICKNAME)
+				$html .= "&nbsp;'{$person->NICKNAME}'";
+			$html .= '</b>;';
+			if ($person->COUNTRY)
+				$html .= "&nbsp;[{$person->COUNTRY}]";
+			if ($person->DESCRIPTION)
+				$html .= "&nbsp;{$person->DESCRIPTION}";
+			$html .= '&nbsp;|';
+			if ($person->QUALIFICATIONS)
+				$html .= "&nbsp;{$person->QUALIFICATIONS}";
+			if ($person->CHECKED || $person->PUBLISHED) {
+				$html .= '&nbsp;|&nbsp;[';
+				if ($person->CHECKED)
+					$html .= 'C';
+				if ($person->PUBLISHED)
+					$html .= 'P';
+				$html .= ']';
+			}
+			$html .= "</li>\n";
+		}
+		$html .= '</ol>';
+
+		$pdf->writeHTML($html, true, false, true, false, '');
+
+		$pdf->lastPage();
+
+		$pdf->Output('persons.pdf', 'D');
+
+		return null;
+	}
+
+	/**
+	 * Exports a list of persons to CSV.
+	 * @param ResultSet $result The results to export.
+	 * @return string Results formatted as tab-separated CSV.
+	 */
+	function exportPersonsToCsv($result) : string {
+		header('Content-Disposition: attachment; filename="persons.csv"');
+
+		// CSV needs to be tab-separated, as fields may contain commas.
+		$csv = "ID\tTITLE\tFIRST_NAME\tNICKNAME\tPREFIX\tLAST_NAME\tSUFFIX\tALIAS\tDESCRIPTION\tQUALIFICATIONS\tCOUNTRY\tRATING\tCHECKED\tPUBLISHED\n";
+		foreach ($result->records as $record) {
+			$csv .= "$record->ID\t$record->TITLE\t$record->FIRST_NAME\t$record->NICKNAME\t$record->PREFIX\t$record->LAST_NAME\t$record->SUFFIX\t$record->ALIAS\t$record->DESCRIPTION\t$record->QUALIFICATIONS\t$record->COUNTRY\t$record->RATING\t$record->CHECKED\t$record->PUBLISHED\n";
+		}
+		return $csv;
+	}
+
+	/**
+	 * Exports a list of publications to PDF.
+	 *
+	 * @param integer|null $personId The ID of the associated author.
+	 * @param string|null $lastName The last name of the associated author.
+	 * @param $filter|null Search string.
+	 * @param $start The index of the first Publication.
+	 * @param ResultSet $result The results to export.
+	 * @return null
+	 */
+	function exportPublicationsToPdf($personId, $filter, $start, $result) {
+		header('Content-Disposition: attachment; filename="publications.pdf"');
+
+		$pdf = createPdf('Publication List', 'Climate Science', 'Science');
+
+		$html = 'Publications';
+		if ($personId) {
+			$person = lookupPerson($personId);
+			$html .= " by $person";
+		}
+		if ($filter) {
+			$html .= ", filtered on '$filter'";
+		}
+		$html .= "<br>\n";
+
+		$count = count($result->records);
+		$finish = $start++ + $count; // (numbered lists start at 1)
+		$html .= "Records {$start}–{$finish} of $result->count:<br>\n";
+
+		$html .= "<ol start=\"$start\">\n";
+		for ($i = 0; $i < $count; $i++) {
+			$publication = $result->records[$i];
+			$html .= '  <li>';
+			if (property_exists($publication, 'LINKED') && !$publication->LINKED) {
+				$html .= '[unverified] ';
+			}
+			// AUTHORS, PUBLICATION_YEAR or YEAR(PUBLICATION_DATE). TITLE. JOURNAL. DOI. ISSN_ISBN. URL [ACCESSED].
+			$html .= formatNames($publication->AUTHORS);
+			$html .= '.';
+			if ($publication->PUBLICATION_YEAR) {
+				$html .= " {$publication->PUBLICATION_YEAR}.";
+			} else if ($publication->PUBLICATION_DATE) {
+				$year = substr($publication->PUBLICATION_DATE, 0, 4);
+				$html .= " $year.";
+			}
+			$html .= " $publication->TITLE.";
+			if ($publication->JOURNAL) {
+				$journal = abbreviateJournal($publication->JOURNAL);
+				$html .= " $journal.";
+			}
+			if ($publication->LOCATION) {
+				$html .= " $publication->LOCATION.";
+			}
+			if ($publication->ISSN_ISBN) {
+				$html .= " ISSN/ISBN:&nbsp;{$publication->ISSN_ISBN}.";
+			}
+			if ($publication->URL) {
+				$html .= " Available from <a href=\"{$publication->URL}\">$publication->URL</a>.";
+// 				if ($publication->ACCESSED)
+// 					$html .= " accessed {$publication->ACCESSED}";
+// 				$html .= '.';
+			}
+			if ($publication->DOI) {
+				$html .= " doi:&nbsp;<a href=\"https://doi.org/{$publication->DOI}\" target=\"_blank\">$publication->DOI</a>.";
+			}
+			$html .= "</li>\n";
+		}
+		$html .= '</ol>';
+
+		$pdf->writeHTML($html, true, false, true, false, '');
+
+		$pdf->lastPage();
+
+		$pdf->Output('publications.pdf', 'D');
+
+		return null;
+	}
+
+	/**
+	 * Exports a list of publications to CSV.
+	 * @param ResultSet $result The results to export.
+	 * @return string Results formatted as tab-separated CSV.
+	 */
+	function exportPublicationsToCsv($result) {
+		header('Content-Disposition: attachment; filename="publications.csv"');
+
+		// CSV needs to be tab-separated, as fields may contain commas.
+		$csv = "ID\tTITLE\tAUTHORS\tJOURNAL\tLOCATION\tPUBLICATION_TYPE_ID\tPUBLICATION_DATE\tPUBLICATION_YEAR\tPEER_REVIEWED\tDOI\tISSN_ISBN\tURL\tACCESSED\n";
+		foreach ($result->records as $record) {
+			$authors = str_replace("\r\n", '|', $record->AUTHORS);
+			$csv .= "$record->ID\t$record->TITLE\t$authors\t$record->JOURNAL\t$record->LOCATION\t$record->PUBLICATION_TYPE_ID\t$record->PUBLICATION_DATE\t$record->PUBLICATION_YEAR\t$record->PEER_REVIEWED\t$record->DOI\t$record->ISSN_ISBN\t$record->URL\t$record->ACCESSED\n";
+		}
+		return $csv;
+	}
+
+	/**
+	 * Exports a list of quotations to PDF.
+	 *
+	 * @param integer|null $personId The ID of the associated author.
+	 * @param $filter|null Search string.
+	 * @param $start The index of the first Publication.
+	 * @param ResultSet $result The results to export.
+	 * @return null
+	 */
+	function exportQuotationsToPdf($personId, $filter, $start, $result) {
+		header('Content-Disposition: attachment; filename="quotations.pdf"');
+
+		$pdf = createPdf('Quotation List', 'Climate Science', 'Quotations');
+
+		if ($personId) {
+			$person = lookupPerson($personId);
+			$html = "Quotations by $person";
+		} else {
+			$html = 'Quotations';
+		}
+		if ($filter)
+			$html .= ", filtered on '$filter'";
+		$html .= "<br>\n";
+
+		$count = count($result->records);
+		$finish = $start++ + $count; // (numbered lists start at 1)
+		$html .= "Records {$start}–{$finish} of $result->count:\n";
+
+		$html .= "<ol start=\"$start\">\n";
+		for ($i = 0; $i < $count; $i++) {
+			$quotation = $result->records[$i];
+			$html .= '  <li>';
+			if (property_exists($quotation, 'LINKED') && !$quotation->LINKED)
+				$html .= '[unverified] ';
+			if ($quotation->AUTHOR)
+				$html .= "$quotation->AUTHOR: ";
+			$html .= "\"$quotation->TEXT\"";
+			if ($quotation->DATE)
+				$html .= " $quotation->DATE";
+			if ($quotation->SOURCE)
+				$html .= " $quotation->SOURCE.";
+			if ($quotation->URL)
+				$html .= " <a href=\"$quotation->URL\">$quotation->URL</a>";
+			$html .= "</li>\n";
+		}
+		$html .= '</ol>';
+
+		$pdf->writeHTML($html, true, false, true, false, '');
+
+		$pdf->lastPage();
+
+		$pdf->Output('quotations.pdf', 'D');
+
+		return null;
+	}
+
+	/**
+	 * Exports a list of quotations to CSV.
+	 * @param ResultSet $result The results to export.
+	 * @return string Results formatted as tab-separated CSV.
+	 */
+	function exportQuotationsToCsv($result) : string {
+		header('Content-Disposition: attachment; filename="quotations.csv"');
+
+		// CSV needs to be tab-separated, as fields may contain commas.
+		$csv = "ID\tPERSON_ID\tAUTHOR\tTEXT\tDATE\tSOURCE\tURL\n";
+		foreach ($result->records as $record) {
+			$text = str_replace(["\r", "\n", "\t", "\v", "\f"], ['\r', '\n', '\t', '\v', '\f'], $record->TEXT);
+			$csv .= "$record->ID\t$record->PERSON_ID\t$record->AUTHOR\t$text\t$record->DATE\t$record->SOURCE\t$record->URL\n";
+		}
+		return $csv;
+	}
+
+	/**
+	 * Exports a list of statistics to PDF.
+	 *
+	 * @param integer|null $personId The ID of the associated author.
+	 * @param $filter|null Search string.
+	 * @param $start The index of the first Publication.
+	 * @param ResultSet $result The results to export.
+	 * @return null
+	 */
+	function exportStatisticsToPdf($result) {
+		header('Content-Disposition: attachment; filename="statistics.pdf"');
+
+		$pdf = createPdf('Statistics List', 'Climate Science', 'Statistics');
+
+		$count = $result->count;
+		$colWidths = [120, 60, 450];
+
+		$html = "<p>Statistics<br>\n";
+		$html .= "Records 1–$count of $count:</p>\n";
+		$html .= "<table cellspacing=\"0\" cellpadding=\"2\" border=\"1\">\n";
+		$html .= "  <thead>\n";
+		$html .= "    <tr>\n";
+		$html .= "      <th width=\"$colWidths[0]\"><b>Category</b></th>\n";
+		$html .= "      <th width=\"$colWidths[1]\" align=\"right\"><b>Count</b></th>\n";
+		$html .= "      <th width=\"$colWidths[2]\"><b>Description</b></th>\n";
+		$html .= "    </tr>\n";
+		$html .= "  </thead>\n";
+		for ($i = 0; $i < $count; $i++) {
+			$statistic = $result->records[$i];
+			$html .= "  <tr>\n";
+			$html .= "    <td width=\"$colWidths[0]\">$statistic->CATEGORY</td>\n";
+			$html .= "    <td width=\"$colWidths[1]\" align=\"right\">$statistic->COUNT</td>\n";
+			$html .= "    <td width=\"$colWidths[2]\">$statistic->DESCRIPTION</td>\n";
+			$html .= "  </tr>\n";
+		}
+		$html .= '</table>';
+
+		$pdf->writeHTML($html, true, false, true, false, '');
+
+		$pdf->lastPage();
+
+		$pdf->Output('statistics.pdf', 'D');
+
+		return null;
+	}
+
+	/**
+	 * Exports a list of statistics to CSV.
+	 * @param ResultSet $result The results to export.
+	 * @return string Results formatted as tab-separated CSV.
+	 */
+	function exportStatisticsToCsv($result) {
+		header('Content-Disposition: attachment; filename="statistics.csv"');
+
+		// CSV needs to be tab-separated, as fields may contain commas.
+		$csv = "CATEGORY\tCOUNT\tDESCRIPTION\n";
+		foreach ($result->records as $record) {
+			$csv .= "$record->CATEGORY\t$record->COUNT\t$record->DESCRIPTION\n";
+		}
+		return $csv;
+	}
+
 ?>

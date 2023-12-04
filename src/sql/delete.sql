@@ -1,3 +1,4 @@
+DELETE FROM abbreviation;
 DELETE FROM declaration;
 DELETE FROM person;
 DELETE FROM publication;
