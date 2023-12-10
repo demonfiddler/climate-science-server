@@ -23,6 +23,7 @@
 	const PUT = 'PUT';
 	const POST = 'POST';
 	const PARAM_FILTER = 'filter';
+	const PARAM_SORT = 'sort';
 	const PARAM_START = 'start';
 	const PARAM_COUNT = 'count';
 	const PARAM_LAST_NAME = 'lastName';
@@ -188,10 +189,6 @@
 	 * @return ResultSet|object|null The result to return in the response body.
 	 */
 	function dispatchRequest($method, $contentType, $path, $params, &$status) {
-		if (!checkArray($path, 1, 3)) {
-			$status = StatusCode::BAD_REQUEST;
-			return null;
-		}
 		switch ($path[0]) {
 			case 'auth':
 				$result = dispatchAuthRequest($method, $path, $params, $status);
@@ -270,7 +267,7 @@
 	 * @return ResultSet|object|null The result to return in the response body.
 	 */
 	function dispatchPersonRequest($method, $contentType, $path, $params, &$status) {
-		if (!checkArray($path, 2, 2)) {
+		if (!checkArray($path, 2, 2) || !getSort($params, $sort)) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
 		}
@@ -284,17 +281,17 @@
 				switch ($path[1]) {
 					case 'find':
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findPersons($contentType, $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findPersons($contentType, $params[PARAM_FILTER], $sort, $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					case 'findByPublication':
 						setDefault($params, PARAM_PUBLICATION_ID, null);
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findPersonsByPublication($contentType, $params[PARAM_PUBLICATION_ID], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findPersonsByPublication($contentType, $params[PARAM_PUBLICATION_ID], $params[PARAM_FILTER], $sort, $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					case 'findByDeclaration':
 						setDefault($params, PARAM_PUBLICATION_ID, null);
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findPersonsByDeclaration($contentType, $params[PARAM_DECLARATION_ID], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findPersonsByDeclaration($contentType, $params[PARAM_DECLARATION_ID], $params[PARAM_FILTER], $sort, $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					default:
 						$result = getPersonById($path[1], $status);
@@ -320,7 +317,7 @@
 	 * @return ResultSet|object|null The result to return in the response body.
 	 */
 	function dispatchPublicationRequest($method, $contentType, $path, $params, &$status) {
-		if (!checkArray($path, 2, 2)) {
+		if (!checkArray($path, 2, 2) || !getSort($params, $sort)) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
 		}
@@ -333,12 +330,12 @@
 				switch ($path[1]) {
 					case 'find':
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findPublications($contentType, $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findPublications($contentType, $params[PARAM_FILTER], $sort, $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					case 'findByAuthor':
 						setDefaults($params, USER_DEFAULTS);
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findPublicationsByAuthor($contentType, $params[PARAM_PERSON_ID], $params[PARAM_LAST_NAME], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findPublicationsByAuthor($contentType, $params[PARAM_PERSON_ID], $params[PARAM_LAST_NAME], $params[PARAM_FILTER], $sort, $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					default:
 						$result = getPublicationById($path[1], $status);
@@ -364,7 +361,7 @@
 	 * @return ResultSet|object|null The result to return in the response body.
 	 */
 	function dispatchDeclarationRequest($method, $contentType, $path, $params, &$status) {
-		if (!checkArray($path, 2, 2)) {
+		if (!checkArray($path, 2, 2) || !getSort($params, $sort)) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
 		}
@@ -377,12 +374,12 @@
 				switch ($path[1]) {
 					case 'find':
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findDeclarations($contentType, $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findDeclarations($contentType, $params[PARAM_FILTER], $sort, $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					case 'findBySignatory':
 						setDefaults($params, USER_DEFAULTS);
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findDeclarationsBySignatory($contentType, $params[PARAM_PERSON_ID], $params[PARAM_LAST_NAME], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findDeclarationsBySignatory($contentType, $params[PARAM_PERSON_ID], $params[PARAM_LAST_NAME], $params[PARAM_FILTER], $sort, $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					default :
 						$result = getDeclarationById($path[1], $status);
@@ -408,7 +405,7 @@
 	 * @return ResultSet|object|null The result to return in the response body.
 	 */
 	function dispatchQuotationRequest($method, $contentType, $path, $params, &$status) {
-		if (!checkArray($path, 2, 2)) {
+		if (!checkArray($path, 2, 2) || !getSort($params, $sort)) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
 		}
@@ -422,12 +419,12 @@
 				switch ($path[1]) {
 					case 'find':
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findQuotations($contentType, $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findQuotations($contentType, $params[PARAM_FILTER], $sort, $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					case 'findByAuthor':
 						setDefaults($params, USER_DEFAULTS);
 						setDefaults($params, FIND_DEFAULTS);
-						$result = findQuotationsByAuthor($contentType, $params[PARAM_PERSON_ID], $params[PARAM_LAST_NAME], $params[PARAM_FILTER], $params[PARAM_START], $params[PARAM_COUNT], $status);
+						$result = findQuotationsByAuthor($contentType, $params[PARAM_PERSON_ID], $params[PARAM_LAST_NAME], $params[PARAM_FILTER], $sort, $params[PARAM_START], $params[PARAM_COUNT], $status);
 						break;
 					default :
 						$result = getQuotationById($path[1], $status);
@@ -592,7 +589,7 @@
 	 * @param $status The HTTP status code to return, passed by reference.
 	 * @return ResultSet|string|null A ResultSet containing the requested Persons.
 	 */
-	function findPersons($contentType, $filter, $start, $count, &$status) {
+	function findPersons($contentType, $filter, $sort, $start, $count, &$status) {
 		if ($filter) {
 			$fields = implode(', ', PERSON_FIELDS);
 			$predicate = "WHERE LOWER(CONVERT(CONCAT_WS('|', $fields) USING UTF8)) LIKE ?";
@@ -601,9 +598,10 @@
 			$predicate = '';
 			$params = null;
 		}
+		$orderBy = $sort ? $sort : 'LAST_NAME, FIRST_NAME';
 		$sql = [
 			"SELECT COUNT(*) FROM person $predicate;",
-			"SELECT * FROM person $predicate ORDER BY LAST_NAME, FIRST_NAME;"
+			"SELECT * FROM person $predicate ORDER BY $orderBy;"
 		];
 
 		$result = executeQuery($sql, $params, true, $start, $count, $status);
@@ -612,7 +610,7 @@
 			case CONTENT_TYPE_JSON:
 				return $result;
 			case CONTENT_TYPE_PDF:
-				return exportPersonsToPdf(null, null, $filter, $start, $result);
+				return exportPersonsToPdf(null, null, $filter, $orderBy, $start, $result);
 			case CONTENT_TYPE_CSV:
 				return exportPersonsToCsv($result);
 			default:
@@ -630,7 +628,7 @@
 	 * @param $count The maximum number of Persons to retrieve.
 	 * @return ResultSet|string|null A ResultSet containing the requested Persons.
 	 */
-	function findPersonsByPublication($contentType, $publicationId, $filter, $start, $count, &$status) {
+	function findPersonsByPublication($contentType, $publicationId, $filter, $sort, $start, $count, &$status) {
 		$params = [$publicationId];
 		if ($filter) {
 			$fields = implode(', ', PERSON_FIELDS);
@@ -639,9 +637,10 @@
 		} else {
 			$predicate = '';
 		}
+		$orderBy = $sort ? $sort : 'LAST_NAME, FIRST_NAME';
 		$sql = [
 			"SELECT COUNT(*) FROM person JOIN authorship ON authorship.PERSON_ID = person.ID WHERE authorship.PUBLICATION_ID=? $predicate;",
-			"SELECT * FROM person JOIN authorship ON authorship.PERSON_ID = person.ID WHERE authorship.PUBLICATION_ID=? $predicate ORDER BY person.LAST_NAME, person.FIRST_NAME;"
+			"SELECT * FROM person JOIN authorship ON authorship.PERSON_ID = person.ID WHERE authorship.PUBLICATION_ID=? $predicate ORDER BY $orderBy;"
 		];
 
 		$result = executeQuery($sql, $params, true, $start, $count, $status);
@@ -650,7 +649,7 @@
 			case CONTENT_TYPE_JSON:
 				return $result;
 			case CONTENT_TYPE_PDF:
-				return exportPersonsToPdf($publicationId, null, $filter, $start, $result);
+				return exportPersonsToPdf($publicationId, null, $filter, $orderBy, $start, $result);
 			case CONTENT_TYPE_CSV:
 				return exportPersonsToCsv($result);
 			default:
@@ -667,7 +666,7 @@
 	 * @param $count The maximum number of Persons to retrieve.
 	 * @return ResultSet|string|null A ResultSet containing the requested Persons.
 	 */
-	function findPersonsByDeclaration($contentType, $declarationId, $filter, $start, $count, &$status) {
+	function findPersonsByDeclaration($contentType, $declarationId, $filter, $sort, $start, $count, &$status) {
 		$params = [$declarationId];
 		if ($filter) {
 			$fields = implode(', ', PERSON_FIELDS);
@@ -676,9 +675,10 @@
 		} else {
 			$predicate = '';
 		}
+		$orderBy = $sort ? $sort : 'LAST_NAME, FIRST_NAME';
 		$sql = [
 			"SELECT COUNT(*) FROM person JOIN signatory ON signatory.PERSON_ID = person.ID WHERE signatory.DECLARATION_ID=? $predicate;",
-			"SELECT * FROM person JOIN signatory ON signatory.PERSON_ID = person.ID WHERE signatory.DECLARATION_ID=? $predicate ORDER BY person.LAST_NAME, person.FIRST_NAME;"
+			"SELECT * FROM person JOIN signatory ON signatory.PERSON_ID = person.ID WHERE signatory.DECLARATION_ID=? $predicate ORDER BY $orderBy;"
 		];
 
 		$result = executeQuery($sql, $params, true, $start, $count, $status);
@@ -687,7 +687,7 @@
 			case CONTENT_TYPE_JSON:
 				return $result;
 			case CONTENT_TYPE_PDF:
-				return exportPersonsToPdf(null, $declarationId, $filter, $start, $result);
+				return exportPersonsToPdf(null, $declarationId, $filter, $orderBy, $start, $result);
 			case CONTENT_TYPE_CSV:
 				return exportPersonsToCsv($result);
 			default:
@@ -713,7 +713,7 @@
 	 * @param $count The maximum number of Publications to return.
 	 * @return ResultSet|string|null A ResultSet containing the requested Publications.
 	 */
-	function findPublications($contentType, $filter, $start, $count, &$status) {
+	function findPublications($contentType, $filter, $sort, $start, $count, &$status) {
 		if ($filter) {
 			$fields = implode(', ', PUBLICATION_FIELDS);
 			$predicate = "WHERE LOWER(CONVERT(CONCAT_WS('|', $fields) USING UTF8)) LIKE ?";
@@ -722,9 +722,10 @@
 			$predicate = "";
 			$params = null;
 		}
+		$orderBy = $sort ? $sort : 'PUBLICATION_YEAR DESC, PUBLICATION_DATE DESC';
 		$sql = [
 			"SELECT COUNT(*) FROM publication $predicate;",
-			"SELECT * FROM publication $predicate ORDER BY PUBLICATION_YEAR DESC, PUBLICATION_DATE DESC;"
+			"SELECT * FROM publication $predicate ORDER BY $orderBy;"
 		];
 
 		$result = executeQuery($sql, $params, true, $start, $count, $status);
@@ -733,7 +734,7 @@
 			case CONTENT_TYPE_JSON:
 				return $result;
 			case CONTENT_TYPE_PDF:
-				return exportPublicationsToPdf(null, $filter, $start, $result);
+				return exportPublicationsToPdf(null, $filter, $orderBy, $start, $result);
 			case CONTENT_TYPE_CSV:
 				return exportPublicationsToCsv($result);
 			default:
@@ -751,7 +752,7 @@
 	 * @param $count The maximum number of Publications to retrieve.
 	 * @return ResultSet|string|null A ResultSet containing the requested Publications.
 	 */
-	function findPublicationsByAuthor($contentType, $personId, $lastName, $filter, $start, $count, &$status) {
+	function findPublicationsByAuthor($contentType, $personId, $lastName, $filter, $sort, $start, $count, &$status) {
 		if (!isset($personId)) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
@@ -804,6 +805,7 @@
 			$plus = '';
 			$union = '';
 		}
+		$orderBy = $sort ? $sort : 'PUBLICATION_YEAR DESC, PUBLICATION_DATE DESC';
 		$sql = [
 			  'SELECT '
 			. $sqlCountById
@@ -814,7 +816,7 @@
 			  $sqlPublicationsByAuthorId
 			. $union
 			. $sqlPublicationsByLastName
-			. ' ORDER BY PUBLICATION_YEAR DESC, PUBLICATION_DATE DESC;'
+			. " ORDER BY $orderBy;"
 		];
 		# @formatter:on
 		
@@ -824,7 +826,7 @@
 			case CONTENT_TYPE_JSON:
 				return $result;
 			case CONTENT_TYPE_PDF:
-				return exportPublicationsToPdf($personId, $filter, $start, $result);
+				return exportPublicationsToPdf($personId, $filter, $orderBy, $start, $result);
 			case CONTENT_TYPE_CSV:
 				return exportPublicationsToCsv($result);
 			default:
@@ -850,7 +852,7 @@
 	 * @param $count The maximum number of Declarations to return.
 	 * @return ResultSet|string|null A ResultSet containing the requested Declarations.
 	 */
-	function findDeclarations($contentType, $filter, $start, $count, &$status) {
+	function findDeclarations($contentType, $filter, $sort, $start, $count, &$status) {
 		if ($filter) {
 			$fields = implode(', ', DECLARATION_FIELDS);
 			$predicate = "WHERE LOWER(CONVERT(CONCAT_WS('|', $fields) USING UTF8)) LIKE ?";
@@ -859,9 +861,10 @@
 			$predicate = "";
 			$params = null;
 		}
+		$orderBy = $sort ? $sort : 'DATE DESC';
 		$sql = [
 			"SELECT COUNT(*) FROM declaration $predicate;",
-			"SELECT * FROM declaration $predicate ORDER BY DATE DESC;"
+			"SELECT * FROM declaration $predicate ORDER BY $orderBy;"
 		];
 
 		$result = executeQuery($sql, $params, true, $start, $count, $status);
@@ -870,7 +873,7 @@
 			case CONTENT_TYPE_JSON:
 				return $result;
 			case CONTENT_TYPE_PDF:
-				return exportDeclarationsToPdf(null, $filter, $start, $result);
+				return exportDeclarationsToPdf(null, $filter, $orderBy, $start, $result);
 			case CONTENT_TYPE_CSV:
 				return exportDeclarationsToCsv($result);
 			default:
@@ -888,7 +891,7 @@
 	 * @param $count The maximum number of Declarations to retrieve.
 	 * @return ResultSet|string|null A ResultSet containing the requested Declarations.
 	 */
-	function findDeclarationsBySignatory($contentType, $personId, $lastName, $filter, $start, $count, &$status) {
+	function findDeclarationsBySignatory($contentType, $personId, $lastName, $filter, $sort, $start, $count, &$status) {
 		if (!isset($personId)) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
@@ -941,6 +944,7 @@
 			$plus = '';
 			$union = '';
 		}
+		$orderBy = $sort ? $sort : 'DATE DESC';
 		$sql = [
 			  'SELECT '
 			. $sqlCountById
@@ -951,7 +955,7 @@
 			  $sqlDeclarationsBySignatoryId
 			. $union
 			. $sqlDeclarationsByLastName
-			. ' ORDER BY DATE DESC;'
+			. " ORDER BY $orderBy;"
 		];
 		# @formatter:on
 
@@ -961,7 +965,7 @@
 			case CONTENT_TYPE_JSON:
 				return $result;
 			case CONTENT_TYPE_PDF:
-				return exportDeclarationsToPdf($personId, $filter, $start, $result);
+				return exportDeclarationsToPdf($personId, $filter, $orderBy, $start, $result);
 			case CONTENT_TYPE_CSV:
 				return exportDeclarationsToCsv($result);
 			default:
@@ -999,7 +1003,7 @@
 	 * @param $count The maximum number of Quotations to return.
 	 * @return ResultSet|string|null A ResultSet containing the requested Quotations.
 	 */
-	function findQuotations($contentType, $filter, $start, $count, &$status) {
+	function findQuotations($contentType, $filter, $sort, $start, $count, &$status) {
 		if ($filter) {
 			$fields = implode(', ', QUOTATION_FIELDS);
 			$predicate = "WHERE LOWER(CONVERT(CONCAT_WS('|', $fields) USING UTF8)) LIKE ?";
@@ -1008,9 +1012,10 @@
 			$predicate = "";
 			$params = null;
 		}
+		$orderBy = $sort ? $sort : 'DATE DESC';
 		$sql = [
 				"SELECT COUNT(*) FROM quotation $predicate;",
-				"SELECT * FROM quotation $predicate ORDER BY DATE DESC;"
+				"SELECT * FROM quotation $predicate ORDER BY $orderBy;"
 		];
 
 		$result = executeQuery($sql, $params, true, $start, $count, $status);
@@ -1019,7 +1024,7 @@
 			case CONTENT_TYPE_JSON:
 				return $result;
 			case CONTENT_TYPE_PDF:
-				return exportQuotationsToPdf(null, $filter, $start, $result);
+				return exportQuotationsToPdf(null, $filter, $orderBy, $start, $result);
 			case CONTENT_TYPE_CSV:
 				return exportQuotationsToCsv($result);
 			default:
@@ -1036,7 +1041,7 @@
 	 * @param $count The maximum number of Quotations to retrieve.
 	 * @return ResultSet|string|null A ResultSet containing the requested Quotations.
 	 */
-	function findQuotationsByAuthor($contentType, $personId, $lastName, $filter, $start, $count, &$status) {
+	function findQuotationsByAuthor($contentType, $personId, $lastName, $filter, $sort, $start, $count, &$status) {
 		if (!isset($personId)) {
 			$status = StatusCode::BAD_REQUEST;
 			return null;
@@ -1080,6 +1085,7 @@
 			$or = '';
 			$union = '';
 		}
+		$orderBy = $sort ? $sort : 'DATE DESC';
 		$sql = [
 			  $sqlCountById
 			. $or
@@ -1089,7 +1095,7 @@
 			  $sqlQuotationsByAuthorId
 			. $union
 			. $sqlQuotationsByLastName
-			. ' ORDER BY DATE DESC;'
+			. ' ORDER BY $orderBy;'
 		];
 		# @formatter:on
 
@@ -1099,7 +1105,7 @@
 			case CONTENT_TYPE_JSON:
 				return $result;
 			case CONTENT_TYPE_PDF:
-				return exportQuotationsToPdf($personId, $filter, $start, $result);
+				return exportQuotationsToPdf($personId, $filter, $orderBy, $start, $result);
 			case CONTENT_TYPE_CSV:
 				return exportQuotationsToCsv($result);
 			default:
@@ -1328,6 +1334,29 @@
 	function getRequestBody() {
 		$stream = isCli() ? 'php://stdin' : 'php://input';
 		return json_decode(file_get_contents($stream), false);
+	}
+
+	/**
+	 * Extracts a sort specification from query parameters.
+	 * @param array $params Query parameters.
+	 * @param string $sort The SQL ORDER BY argument, passed by reference.
+	 */
+	function getSort(array $params, &$sort) : bool {
+		if (array_key_exists(PARAM_SORT, $params)) {
+			$value = strtoupper($params[PARAM_SORT]);
+			if ($value) {
+				// Validate sort spec with regex to guard against SQL injection attacks.
+				if (preg_match('/^([A-Z_]+)(?:(?:[ +]|%20)(ASC|DESC))?$/', $value, $matches)) {
+					$sort = $matches[1];
+					$direction = $matches[2];
+					if ($direction == 'DESC')
+						$sort .= ' DESC';
+				} else {
+					return false;
+				}
+			}
+		}
+		return true;
 	}
 
 	/**
@@ -1816,20 +1845,20 @@
 	 * @param ResultSet $result The results to export.
 	 * @return null
 	 */
-	function exportDeclarationsToPdf($personId, $filter, $start, $result) {
+	function exportDeclarationsToPdf($personId, $filter, $orderBy, $start, $result) {
 		header('Content-Disposition: attachment; filename="declarations.pdf"');
 
-		$pdf = createPdf('Declaration List', 'Climate Science', 'Declarations');
+		$pdf = createPdf('Declaration List', 'Climate Science', 'Climate Contrarian Declarations');
 	
+		$html = 'Declarations';
 		if ($personId) {
 			$person = lookupPerson($personId);
-			$html = "Declarations signed by $person";
-		} else {
-			$html = 'Declarations';
+			$html .= " signed by $person";
 		}
-		if ($filter) {
+		if ($filter)
 			$html .= ", filtered on '$filter'";
-		}
+		if ($orderBy)
+			$html .= ", sorted on '$orderBy'";
 		$html .= "<br>\n";
 	
 		$count = count($result->records);
@@ -1892,10 +1921,10 @@
 	 * @param ResultSet $result The results to export.
 	 * @return null
 	 */
-	function exportPersonsToPdf($publicationId, $declarationId, $filter, $start, $result) {
+	function exportPersonsToPdf($publicationId, $declarationId, $filter, $orderBy, $start, $result) {
 		header('Content-Disposition: attachment; filename="persons.pdf"');
 
-		$pdf = createPdf('Person List', 'Climate Science', 'Scientists');
+		$pdf = createPdf('Person List', 'Climate Science', 'Climate Contrarian Scientists');
 
 		if ($publicationId) {
 			$publication = lookupPublication($publicationId);
@@ -1906,9 +1935,10 @@
 		} else {
 			$html = 'Persons';
 		}
-		if ($filter) {
+		if ($filter)
 			$html .= ", filtered on '$filter'";
-		}
+		if ($orderBy)
+			$html .= ", sorted on $orderBy";
 		$html .= "<br>\n";
 		
 		$count = count($result->records);
@@ -1988,19 +2018,20 @@
 	 * @param ResultSet $result The results to export.
 	 * @return null
 	 */
-	function exportPublicationsToPdf($personId, $filter, $start, $result) {
+	function exportPublicationsToPdf($personId, $filter, $orderBy, $start, $result) {
 		header('Content-Disposition: attachment; filename="publications.pdf"');
 
-		$pdf = createPdf('Publication List', 'Climate Science', 'Science');
+		$pdf = createPdf('Publication List', 'Climate Science', 'Climate Contrarian Science');
 
 		$html = 'Publications';
 		if ($personId) {
 			$person = lookupPerson($personId);
 			$html .= " by $person";
 		}
-		if ($filter) {
+		if ($filter)
 			$html .= ", filtered on '$filter'";
-		}
+		if ($orderBy)
+			$html .= ", sorted on $orderBy";
 		$html .= "<br>\n";
 
 		$count = count($result->records);
@@ -2082,19 +2113,21 @@
 	 * @param ResultSet $result The results to export.
 	 * @return null
 	 */
-	function exportQuotationsToPdf($personId, $filter, $start, $result) {
+	function exportQuotationsToPdf($personId, $filter, $orderBy, $start, $result) {
 		header('Content-Disposition: attachment; filename="quotations.pdf"');
 
-		$pdf = createPdf('Quotation List', 'Climate Science', 'Quotations');
+		$pdf = createPdf('Quotation List', 'Climate Science', 'Climate Contrarian Quotations');
 
+
+		$html = 'Quotations';
 		if ($personId) {
 			$person = lookupPerson($personId);
-			$html = "Quotations by $person";
-		} else {
-			$html = 'Quotations';
+			$html .= " by $person";
 		}
 		if ($filter)
 			$html .= ", filtered on '$filter'";
+		if ($orderBy)
+			$html .= ", sorted on $orderBy";
 		$html .= "<br>\n";
 
 		$count = count($result->records);
@@ -2158,7 +2191,7 @@
 	function exportStatisticsToPdf($result) {
 		header('Content-Disposition: attachment; filename="statistics.pdf"');
 
-		$pdf = createPdf('Statistics List', 'Climate Science', 'Statistics');
+		$pdf = createPdf('Statistics List', 'Climate Science', 'Climate Contrarian Statistics');
 
 		$count = $result->count;
 		$colWidths = [120, 60, 450];
