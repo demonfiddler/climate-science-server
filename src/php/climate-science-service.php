@@ -1095,7 +1095,7 @@
 			  $sqlQuotationsByAuthorId
 			. $union
 			. $sqlQuotationsByLastName
-			. ' ORDER BY $orderBy;'
+			. " ORDER BY $orderBy;"
 		];
 		# @formatter:on
 
