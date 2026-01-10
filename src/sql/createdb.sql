@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS `person` (
   KEY `RATING` (`RATING`) USING BTREE,
   KEY `COUNTRY` (`COUNTRY`) USING BTREE,
   CONSTRAINT `RATING` CHECK (`RATING` >= 0 and `RATING` <= 5)
-) ENGINE=InnoDB AUTO_INCREMENT=2982 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='People who have publicly expressed contrarian/sceptical views about climate science orthodoxy, whether by signing declarations, open letters or publishing science articles.';
+) ENGINE=InnoDB AUTO_INCREMENT=2992 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='People who have publicly expressed contrarian/sceptical views about climate science orthodoxy, whether by signing declarations, open letters or publishing science articles.';
 
 -- Data exporting was unselected.
 
@@ -87,13 +87,14 @@ CREATE TABLE IF NOT EXISTS `person` (
 CREATE TABLE IF NOT EXISTS `publication` (
   `ID` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Unique identifier',
   `TITLE` varchar(200) NOT NULL COMMENT 'Publication title',
-  `AUTHORS` varchar(100) NOT NULL COMMENT 'List of author names',
-  `JOURNAL` varchar(100) DEFAULT NULL COMMENT 'Journal title',
+  `AUTHORS` varchar(2000) NOT NULL COMMENT 'List of author names',
+  `JOURNAL` varchar(150) DEFAULT NULL COMMENT 'Journal title',
   `LOCATION` varchar(20) DEFAULT NULL COMMENT 'The location of the article',
   `PUBLICATION_TYPE_ID` varchar(6) DEFAULT NULL COMMENT 'The type of publication',
   `PUBLICATION_DATE` date DEFAULT NULL COMMENT 'Publication date',
   `PUBLICATION_YEAR` year(4) DEFAULT NULL COMMENT 'Publication year',
   `ABSTRACT` text DEFAULT NULL COMMENT 'Abstract from the article',
+  `NOTES` text DEFAULT NULL COMMENT 'Added notes about the pubication',
   `PEER_REVIEWED` bit(1) DEFAULT NULL COMMENT 'Whether article was peer-reviewed',
   `DOI` varchar(255) DEFAULT NULL COMMENT 'Digital Object Identifier',
   `ISSN_ISBN` varchar(20) DEFAULT NULL COMMENT 'International Standard Serial/Book Number',
@@ -103,7 +104,7 @@ CREATE TABLE IF NOT EXISTS `publication` (
   UNIQUE KEY `DOI` (`DOI`),
   KEY `PUBLICATION_TYPE_ID` (`PUBLICATION_TYPE_ID`),
   CONSTRAINT `PUBLICATION_TYPE_ID` FOREIGN KEY (`PUBLICATION_TYPE_ID`) REFERENCES `publication_type` (`ID`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=260 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='References to published articles, whether or not peer-reviewed.';
+) ENGINE=InnoDB AUTO_INCREMENT=341 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='References to published articles, whether or not peer-reviewed.';
 
 -- Data exporting was unselected.
 
@@ -129,7 +130,7 @@ CREATE TABLE IF NOT EXISTS `quotation` (
   KEY `AUTHOR` (`AUTHOR`),
   KEY `QUOTATION_PERSON` (`PERSON_ID`) USING BTREE,
   CONSTRAINT `FK_QUOTATION_PERSON` FOREIGN KEY (`PERSON_ID`) REFERENCES `person` (`ID`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Quotations by leading climate sceptics';
+) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Quotations by leading climate sceptics';
 
 -- Data exporting was unselected.
 

@@ -1365,7 +1365,7 @@
 	 * @param $params The parameters to bind to the query/queries; parameter count must match query markers.
 	 * @param $multi true if the query could yield multiple rows.
 	 * @param $start The index of the first result row to return.
-	 * @param $start The maximum number of result rows to return.
+	 * @param $count The maximum number of result rows to return.
 	 * @param $status The HTTP status code to return, passed by reference.
 	 * @return mixed If $multi is false, returns the requested row as an object. If $multi is true, returns a
 	 * ResultSet object containing the total count and the requested rows as an array of objects. Otherwise, returns
@@ -1907,7 +1907,7 @@
 		$csv = "ID\tTYPE\tTITLE\tDATE\tCOUNTRY\tURL\tSIGNATORY_COUNT\tSIGNATORIES\n";
 		foreach ($result->records as $record) {
 			$signatories = str_replace("\r\n", '|', $record->SIGNATORIES);
-			$csv .= "$record->ID\t$record->TITLE\t$record->DATE\t$record->COUNTRY\t$record->URL\t$record->SIGNATORY_COUNT\t$signatories\n";
+			$csv .= "$record->ID\t$record->TYPE\t$record->TITLE\t$record->DATE\t$record->COUNTRY\t$record->URL\t$record->SIGNATORY_COUNT\t$signatories\n";
 		}
 		return $csv;
 	}
